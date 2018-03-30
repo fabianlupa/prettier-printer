@@ -3,10 +3,7 @@
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <DEVC>
-    <CTEXT>prettier-printer</CTEXT>
-    <COMP_POSID>BC</COMP_POSID>
-    <COMPONENT>HLB0009009</COMPONENT>
-    <SRV_CHECK>X</SRV_CHECK>
+    <CTEXT>PPR formatting processors</CTEXT>
    </DEVC>
   </asx:values>
  </asx:abap>

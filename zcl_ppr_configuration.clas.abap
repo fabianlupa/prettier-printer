@@ -1,0 +1,15 @@
+"! Configuration
+CLASS zcl_ppr_configuration DEFINITION
+  PUBLIC
+  FINAL
+  CREATE PUBLIC.
+
+  PUBLIC SECTION.
+  PROTECTED SECTION.
+  PRIVATE SECTION.
+ENDCLASS.
+
+
+
+CLASS zcl_ppr_configuration IMPLEMENTATION.
+ENDCLASS.
