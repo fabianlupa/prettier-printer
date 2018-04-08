@@ -28,7 +28,8 @@ CLASS zcl_ppr_formatter DEFINITION
       split_source_into_processors,
       get_source_from_to IMPORTING iv_from          TYPE i
                                    iv_to            TYPE i
-                         RETURNING VALUE(rt_source) TYPE stringtab.
+                         RETURNING VALUE(rt_source) TYPE stringtab,
+      build_source_hierarchy.
     DATA:
       mt_tokens          TYPE stokesx_tab,
       mt_statements      TYPE sstmnt_tab,
@@ -81,6 +82,8 @@ CLASS zcl_ppr_formatter IMPLEMENTATION.
         et_statements = mt_statements
         et_structures = mt_structures
     ).
+
+    build_source_hierarchy( ).
 
     split_source_into_processors( ).
 
@@ -137,6 +140,21 @@ CLASS zcl_ppr_formatter IMPLEMENTATION.
       ENDTRY.
 
       ADD 1 TO lv_counter.
+    ENDWHILE.
+  ENDMETHOD.
+
+  METHOD build_source_hierarchy.
+    DATA(lv_statement_count) = lines( mt_statements ).
+    DATA(lv_counter) = 1.
+
+    WHILE lv_counter <= lv_statement_count.
+*      DATA(lr_statement) = REF #( mt_statements[ lv_counter ] ).
+*      DATA(lr_structure) = REF #( mt_structures[ mt_tokens[ lr_statement->from ]-row ] ).
+*      DATA(lt_tokens) = get_tokens_for_statement( lr_statement->* ).
+*
+*      zcl_ppr_statement_factory=>
+*
+*      ADD 1 TO lv_counter.
     ENDWHILE.
   ENDMETHOD.
 

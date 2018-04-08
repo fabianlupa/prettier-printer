@@ -1,0 +1,15 @@
+"! Class definition section
+CLASS zcl_ppr_class_section DEFINITION
+  PUBLIC
+  FINAL
+  CREATE PUBLIC.
+
+  PUBLIC SECTION.
+  PROTECTED SECTION.
+  PRIVATE SECTION.
+ENDCLASS.
+
+
+
+CLASS zcl_ppr_class_section IMPLEMENTATION.
+ENDCLASS.
