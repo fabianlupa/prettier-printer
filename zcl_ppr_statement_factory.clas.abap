@@ -15,6 +15,7 @@ CLASS zcl_ppr_statement_factory DEFINITION
   PROTECTED SECTION.
   PRIVATE SECTION.
     CLASS-METHODS:
+      " Determine wether the statement starts a new source hierarchy level or not
       is_multi_level_statement IMPORTING is_statement              TYPE sstmnt
                                RETURNING VALUE(rv_multiple_levels) TYPE abap_bool.
     METHODS:
@@ -66,7 +67,7 @@ CLASS zcl_ppr_statement_factory IMPLEMENTATION.
     IF is_multi_level_statement( lr_statement->* ) = abap_true.
       determine_end_statement(
         EXPORTING
-          iv_statement_index = iv_statement_index
+          iv_statement_index     = iv_statement_index
         IMPORTING
           ev_end_statement_index = DATA(lv_end_statement_index)
           ev_implicit_end        = DATA(lv_implicit_end)
@@ -93,6 +94,8 @@ CLASS zcl_ppr_statement_factory IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD is_multi_level_statement.
+    ##TODO.
+*    IF is_statement-
 *    rv_multiple_levels = SWITCH #( is_statement-t)
   ENDMETHOD.
 
