@@ -38,11 +38,19 @@ CLASS lcl_main DEFINITION.
       BEGIN OF gty_tree_data,
         text TYPE string,
         type TYPE string,
+        id   TYPE i,
       END OF gty_tree_data.
+    CLASS-METHODS:
+      scan_return_value_to_tree_data IMPORTING io_value       TYPE REF TO zcl_ppr_scan_return_value_base
+                                     RETURNING VALUE(rs_data) TYPE gty_tree_data,
+      append_structure_nodes_rec IMPORTING io_nodes            TYPE REF TO cl_salv_nodes
+                                           iv_parent_node_key  TYPE salv_de_node_key
+                                           io_parent_structure TYPE REF TO zcl_ppr_scan_structure.
     METHODS:
       read_source RAISING lcx_error,
       analyze RAISING lcx_error,
-      display_tree RAISING lcx_error.
+      display_tree RAISING lcx_error,
+      on_double_click FOR EVENT double_click OF cl_salv_events_tree IMPORTING node_key.
     DATA:
       mo_scanner   TYPE REF TO zcl_ppr_oo_scanner,
       mo_result    TYPE REF TO zcl_ppr_scan_result,
@@ -75,6 +83,8 @@ CLASS lcl_main IMPLEMENTATION.
             CHANGING
               t_table       = mt_tree_data
           ).
+          SET HANDLER on_double_click FOR mo_tree->get_event( ).
+
         CATCH cx_salv_error INTO DATA(lx_ex).
           RAISE EXCEPTION TYPE lcx_error
             EXPORTING
@@ -90,14 +100,23 @@ CLASS lcl_main IMPLEMENTATION.
           relationship   = if_salv_c_node_relation=>last_child
           text           = 'Root'
         ).
+        DATA(lo_statement_root) = mo_tree->get_nodes( )->add_node(
+          related_node   = lo_root->get_key( )
+          relationship   = if_salv_c_node_relation=>last_child
+          text           = 'Statements'
+        ).
+        DATA(lo_structure_root) = mo_tree->get_nodes( )->add_node(
+          related_node   = lo_root->get_key( )
+          relationship   = if_salv_c_node_relation=>last_child
+          text           = 'Structures'
+        ).
 
         LOOP AT mo_result->mt_statements INTO DATA(lo_statement).
           DATA(lo_statement_node) = mo_tree->get_nodes( )->add_node(
-            related_node   = lo_root->get_key( )
+            related_node   = lo_statement_root->get_key( )
             relationship   = if_salv_c_node_relation=>last_child
             text           = CONV #( lo_statement->get_statement_text( ) )
-            data_row       = VALUE gty_tree_data( text = lo_statement->get_description( )
-                                                  type = lo_statement->mv_type_name )
+            data_row       = scan_return_value_to_tree_data( lo_statement )
           ).
 
           DATA(lo_statement_tokens_node) = mo_tree->get_nodes( )->add_node(
@@ -110,11 +129,35 @@ CLASS lcl_main IMPLEMENTATION.
             mo_tree->get_nodes( )->add_node(
               related_node   = lo_statement_tokens_node->get_key( )
               relationship   = if_salv_c_node_relation=>last_child
-              data_row       = VALUE gty_tree_data( text = lo_token->get_description( )
-                                                    type = lo_token->mv_type_name )
+              data_row       = scan_return_value_to_tree_data( lo_token )
               text           = CONV #( lo_token->get_token_text( ) )
             ).
           ENDLOOP.
+
+          DATA(lo_structure) = lo_statement->get_structure( ).
+          DATA(lo_statement_structure_node) = mo_tree->get_nodes( )->add_node(
+            related_node   = lo_statement_node->get_key( )
+            relationship   = if_salv_c_node_relation=>last_child
+            data_row       = scan_return_value_to_tree_data( lo_structure )
+            text           = CONV #( lo_structure->get_description( ) )
+          ).
+        ENDLOOP.
+
+        LOOP AT mo_result->mt_structures INTO DATA(lo_structure2).
+          IF lo_structure2->has_parent_structure( ) = abap_true.
+            CONTINUE.
+          ENDIF.
+
+          DATA(lo_structure_node) = mo_tree->get_nodes( )->add_node(
+            related_node   = lo_structure_root->get_key( )
+            relationship   = if_salv_c_node_relation=>last_child
+            text           = CONV #( lo_structure2->get_structure_type_text( ) )
+            data_row       = scan_return_value_to_tree_data( lo_structure2 )
+          ).
+
+          append_structure_nodes_rec( io_nodes            = mo_tree->get_nodes( )
+                                      iv_parent_node_key  = lo_structure_node->get_key( )
+                                      io_parent_structure = lo_structure2 ).
         ENDLOOP.
 
         lo_root->expand( ).
@@ -153,6 +196,55 @@ CLASS lcl_main IMPLEMENTATION.
     ENDIF.
   ENDMETHOD.
 
+  METHOD on_double_click.
+    CHECK node_key IS NOT INITIAL.
+    DATA(lr_data) = CAST gty_tree_data( mo_tree->get_nodes( )->get_node( node_key )->get_data_row( ) ).
+    CHECK lr_data->type IS NOT INITIAL AND lr_data->id IS NOT INITIAL.
+    DATA(lo_value) = mo_result->get_return_value_generic( iv_type = lr_data->type iv_id = lr_data->id ).
+
+    DATA(li_output) = cl_demo_output=>new(
+      )->write_text( lo_value->get_description( )
+      )->write( data = lo_value->mv_id name = 'ID'
+      )->write( data = lo_value->mv_type_name name = 'TYPE'
+      )->begin_section( 'Data' ).
+
+    CASE lo_value->mv_type_name.
+      WHEN zcl_ppr_scan_statement=>gc_result_type_name.
+        DATA(lo_statement) = CAST zcl_ppr_scan_statement( lo_value ).
+        li_output->write_data( lo_statement->ms_statement ).
+
+      WHEN zcl_ppr_scan_token=>gc_result_type_name.
+        DATA(lo_token) = CAST zcl_ppr_scan_token( lo_value ).
+        li_output->write_data( lo_token->ms_token ).
+
+      WHEN zcl_ppr_scan_structure=>gc_result_type_name.
+        DATA(lo_structure) = CAST zcl_ppr_scan_structure( lo_value ).
+        li_output->write_data( lo_structure->ms_structure ).
+
+    ENDCASE.
+
+    li_output->end_section( )->display( ).
+  ENDMETHOD.
+
+  METHOD scan_return_value_to_tree_data.
+    rs_data = VALUE gty_tree_data( text = io_value->get_description( )
+                                   type = io_value->mv_type_name
+                                   id   = io_value->mv_id ).
+  ENDMETHOD.
+
+  METHOD append_structure_nodes_rec.
+    LOOP AT io_parent_structure->get_sub_structures( ) INTO DATA(lo_structure).
+      DATA(lo_structure_node) = io_nodes->add_node(
+        related_node   = iv_parent_node_key
+        relationship   = if_salv_c_node_relation=>last_child
+        text           = CONV #( lo_structure->get_structure_type_text( ) )
+        data_row       = scan_return_value_to_tree_data( lo_structure )
+      ).
+      append_structure_nodes_rec( io_nodes            = io_nodes
+                                  iv_parent_node_key  = lo_structure_node->get_key( )
+                                  io_parent_structure = lo_structure ).
+    ENDLOOP.
+  ENDMETHOD.
 ENDCLASS.
 
 START-OF-SELECTION.

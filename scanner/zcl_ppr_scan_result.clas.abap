@@ -19,10 +19,15 @@ CLASS zcl_ppr_scan_result DEFINITION
                         it_structure_objects TYPE gty_structure_object_tab,
       get_statement_by_token IMPORTING io_token            TYPE REF TO zcl_ppr_scan_token
                              RETURNING VALUE(ro_statement) TYPE REF TO zcl_ppr_scan_statement,
+      get_statement_by_id IMPORTING iv_id               TYPE i
+                          RETURNING VALUE(ro_statement) TYPE REF TO zcl_ppr_scan_statement,
       get_token_by_id IMPORTING iv_id           TYPE i
                       RETURNING VALUE(ro_token) TYPE REF TO zcl_ppr_scan_token,
       get_structure_by_id IMPORTING iv_id               TYPE i
-                          RETURNING VALUE(ro_structure) TYPE REF TO zcl_ppr_scan_structure.
+                          RETURNING VALUE(ro_structure) TYPE REF TO zcl_ppr_scan_structure,
+      get_return_value_generic IMPORTING iv_type                TYPE string
+                                         iv_id                  TYPE i
+                               RETURNING VALUE(ro_return_value) TYPE REF TO zcl_ppr_scan_return_value_base.
     DATA:
       mt_source     TYPE stringtab READ-ONLY,
       mt_statements TYPE gty_statement_object_tab READ-ONLY,
@@ -60,11 +65,27 @@ CLASS zcl_ppr_scan_result IMPLEMENTATION.
     ENDLOOP.
   ENDMETHOD.
 
+  METHOD get_statement_by_id.
+    ro_statement = mt_statements[ iv_id ].
+  ENDMETHOD.
+
   METHOD get_token_by_id.
     ro_token = mt_tokens[ iv_id ].
   ENDMETHOD.
 
   METHOD get_structure_by_id.
     ro_structure = mt_structures[ iv_id ].
+  ENDMETHOD.
+
+  METHOD get_return_value_generic.
+    ro_return_value = SWITCH #( iv_type
+      WHEN zcl_ppr_scan_statement=>gc_result_type_name
+      THEN get_statement_by_id( iv_id )
+      WHEN zcl_ppr_scan_token=>gc_result_type_name
+      THEN get_token_by_id( iv_id )
+      WHEN zcl_ppr_scan_structure=>gc_result_type_name
+      THEN get_structure_by_id( iv_id )
+    ).
+    ASSERT ro_return_value IS BOUND.
   ENDMETHOD.
 ENDCLASS.

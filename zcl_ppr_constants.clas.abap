@@ -10,6 +10,7 @@ CLASS zcl_ppr_constants DEFINITION
     CONSTANTS:
       gc_scan_stmnt_types LIKE scan_stmnt_type VALUE scan_stmnt_type,
       gc_scan_struc_types LIKE scan_struc_type VALUE scan_struc_type,
+      gc_scan_token_types LIKE scan_token_type VALUE scan_token_type,
       BEGIN OF gc_declaration_types,
         data      TYPE gty_declaration_type VALUE 'D',
         types     TYPE gty_declaration_type VALUE 'T',
