@@ -3,7 +3,9 @@ REPORT zppr_source_code_visualizer NO STANDARD PAGE HEADING.
 PARAMETERS: p_objt   TYPE trobjtype OBLIGATORY DEFAULT 'PROG',
             p_objn   TYPE sobj_name OBLIGATORY DEFAULT 'ZPPR_SOURCE_CODE_VISUALIZER',
             p_active TYPE abap_bool RADIOBUTTON GROUP r1 DEFAULT 'X',
-            p_inacti TYPE abap_bool RADIOBUTTON GROUP r1.
+            p_inacti TYPE abap_bool RADIOBUTTON GROUP r1,
+            p_mlist  TYPE abap_bool RADIOBUTTON GROUP r2 DEFAULT 'X',
+            p_moo    TYPE abap_bool RADIOBUTTON GROUP r2.
 
 CLASS lcx_error DEFINITION INHERITING FROM cx_static_check.
   PUBLIC SECTION.
@@ -60,7 +62,8 @@ CLASS lcl_main DEFINITION.
       read_source RAISING lcx_error,
       display_as_list,
       scan_source,
-      format_output_tables.
+      format_output_tables,
+      analyze_with_scanner.
     DATA:
       mt_source         TYPE stringtab,
       mt_tokens         TYPE stokesx_tab,
@@ -74,9 +77,13 @@ ENDCLASS.
 CLASS lcl_main IMPLEMENTATION.
   METHOD run.
     read_source( ).
-    scan_source( ).
-    format_output_tables( ).
-    display_as_list( ).
+    IF p_mlist = abap_true.
+      scan_source( ).
+      format_output_tables( ).
+      display_as_list( ).
+    ELSEIF p_moo = abap_true.
+      analyze_with_scanner( ).
+    ENDIF.
   ENDMETHOD.
 
   METHOD analyze_line.
@@ -170,6 +177,13 @@ CLASS lcl_main IMPLEMENTATION.
     LOOP AT mt_tokens ASSIGNING FIELD-SYMBOL(<ls_token>).
       APPEND prepare_token_for_output( <ls_token> ) TO mt_tokens_out.
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD analyze_with_scanner.
+    DATA(lo_scanner) = NEW zcl_ppr_oo_scanner( zcl_ppr_source_scanner=>get_instance( ) ).
+    BREAK-POINT.
+    DATA(lo_result) = lo_scanner->scan_source( mt_source ).
+    BREAK-POINT.
   ENDMETHOD.
 
   METHOD display_as_list.

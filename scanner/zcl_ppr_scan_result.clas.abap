@@ -19,8 +19,10 @@ CLASS zcl_ppr_scan_result DEFINITION
                         it_structure_objects TYPE gty_structure_object_tab,
       get_statement_by_token IMPORTING io_token            TYPE REF TO zcl_ppr_scan_token
                              RETURNING VALUE(ro_statement) TYPE REF TO zcl_ppr_scan_statement,
-      get_token_by_id IMPORTING iv_id TYPE i
-                      RETURNING VALUE(ro_token) TYPE REF TO zcl_ppr_scan_token.
+      get_token_by_id IMPORTING iv_id           TYPE i
+                      RETURNING VALUE(ro_token) TYPE REF TO zcl_ppr_scan_token,
+      get_structure_by_id IMPORTING iv_id               TYPE i
+                          RETURNING VALUE(ro_structure) TYPE REF TO zcl_ppr_scan_structure.
     DATA:
       mt_source     TYPE stringtab READ-ONLY,
       mt_statements TYPE gty_statement_object_tab READ-ONLY,
@@ -60,5 +62,9 @@ CLASS zcl_ppr_scan_result IMPLEMENTATION.
 
   METHOD get_token_by_id.
     ro_token = mt_tokens[ iv_id ].
+  ENDMETHOD.
+
+  METHOD get_structure_by_id.
+    ro_structure = mt_structures[ iv_id ].
   ENDMETHOD.
 ENDCLASS.

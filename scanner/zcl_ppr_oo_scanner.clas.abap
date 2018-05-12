@@ -5,7 +5,7 @@ CLASS zcl_ppr_oo_scanner DEFINITION
 
   PUBLIC SECTION.
     METHODS:
-      constructor IMPORTING ii_scanner TYPE REF TO zif_ppr_source_scanner,
+      constructor IMPORTING ii_scanner TYPE REF TO zif_ppr_source_scanner OPTIONAL,
       scan_source IMPORTING it_source        TYPE stringtab
                   RETURNING VALUE(ro_result) TYPE REF TO zcl_ppr_scan_result.
   PROTECTED SECTION.
@@ -18,8 +18,10 @@ ENDCLASS.
 
 CLASS zcl_ppr_oo_scanner IMPLEMENTATION.
   METHOD constructor.
-    ASSERT ii_scanner IS BOUND ##TODO.
     mi_scanner = ii_scanner.
+    IF mi_scanner IS NOT BOUND.
+      mi_scanner = zcl_ppr_source_scanner=>get_instance( ).
+    ENDIF.
   ENDMETHOD.
 
   METHOD scan_source.

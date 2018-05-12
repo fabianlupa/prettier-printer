@@ -32,16 +32,28 @@
     </item>
     <item>
      <ID>S</ID>
+     <KEY>P_MLIST</KEY>
+     <ENTRY>List output</ENTRY>
+     <LENGTH>19</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_MOO</KEY>
+     <ENTRY>OO scanner breakpoint</ENTRY>
+     <LENGTH>29</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
      <KEY>P_OBJN</KEY>
      <ENTRY>.</ENTRY>
-     <LENGTH>9</LENGTH>
+     <LENGTH>19</LENGTH>
      <SPLIT>D</SPLIT>
     </item>
     <item>
      <ID>S</ID>
      <KEY>P_OBJT</KEY>
      <ENTRY>.</ENTRY>
-     <LENGTH>9</LENGTH>
+     <LENGTH>19</LENGTH>
      <SPLIT>D</SPLIT>
     </item>
    </TPOOL>
