@@ -17,7 +17,11 @@ CLASS zcl_ppr_scan_statement DEFINITION
       get_description REDEFINITION,
       get_statement_type RETURNING VALUE(rv_type) TYPE stmnt_type,
       get_statement_type_name RETURNING VALUE(rv_type_name) TYPE string,
-      get_statement_text RETURNING VALUE(rv_text) TYPE string.
+      get_statement_text RETURNING VALUE(rv_text) TYPE string,
+      get_first_line_number RETURNING VALUE(rv_line) TYPE i,
+      get_last_line_number RETURNING VALUE(rv_line) TYPE i,
+      get_source RETURNING VALUE(rt_source) TYPE stringtab,
+      is_part_of_chained_statement RETURNING VALUE(rv_is_chained) TYPE abap_bool.
     DATA:
       ms_statement TYPE sstmnt READ-ONLY.
   PROTECTED SECTION.
@@ -85,7 +89,37 @@ CLASS zcl_ppr_scan_statement IMPLEMENTATION.
     LOOP AT get_tokens( ) INTO DATA(lo_token).
       rv_text = |{ rv_text } { lo_token->get_token_text( ) }|.
     ENDLOOP.
+  ENDMETHOD.
 
-    rv_text = rv_text && '.'.
+  METHOD get_first_line_number.
+    DATA(lt_tokens) = get_tokens( ).
+    rv_line = lt_tokens[ 1 ]->get_row( ).
+  ENDMETHOD.
+
+  METHOD get_last_line_number.
+    DATA(lt_tokens) = get_tokens( ).
+    rv_line = lt_tokens[ lines( lt_tokens ) ]->get_row( ).
+  ENDMETHOD.
+
+  METHOD get_source.
+*    DATA(lt_tokens) = get_tokens( ).
+
+    ##TODO. " This will give wrong results with chained statements and multiple statements per line
+    LOOP AT mo_scan_result->mt_source FROM get_first_line_number( ) TO get_last_line_number( )
+                                      INTO DATA(lv_source_line).
+*      AT FIRST.
+*        lt_tokens[ 1 ]->
+*      ENDAT.
+*
+*      AT LAST.
+*
+*      ENDAT.
+
+      APPEND lv_source_line TO rt_source.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD is_part_of_chained_statement.
+    rv_is_chained = boolc( ms_statement-colonrow IS NOT INITIAL ).
   ENDMETHOD.
 ENDCLASS.
