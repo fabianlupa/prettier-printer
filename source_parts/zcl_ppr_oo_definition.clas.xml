@@ -3,12 +3,13 @@
  <asx:abap xmlns:asx="http://www.sap.com/abapxml" version="1.0">
   <asx:values>
    <VSEOCLASS>
-    <CLSNAME>ZCL_PPR_STATEMENT</CLSNAME>
+    <CLSNAME>ZCL_PPR_OO_DEFINITION</CLSNAME>
     <VERSION>1</VERSION>
     <LANGU>E</LANGU>
-    <DESCRIPT>Statement</DESCRIPT>
+    <DESCRIPT>OO definition</DESCRIPT>
     <EXPOSURE>2</EXPOSURE>
     <STATE>1</STATE>
+    <CLSABSTRCT>X</CLSABSTRCT>
     <CLSCCINCL>X</CLSCCINCL>
     <FIXPT>X</FIXPT>
     <UNICODE>X</UNICODE>
