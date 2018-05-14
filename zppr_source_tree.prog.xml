@@ -18,6 +18,32 @@
      <ENTRY>Source code tree visualization</ENTRY>
      <LENGTH>30</LENGTH>
     </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_ACTIVE</KEY>
+     <ENTRY>Active version</ENTRY>
+     <LENGTH>22</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_INACTI</KEY>
+     <ENTRY>Inactive version</ENTRY>
+     <LENGTH>24</LENGTH>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_OBJN</KEY>
+     <ENTRY>.</ENTRY>
+     <LENGTH>9</LENGTH>
+     <SPLIT>D</SPLIT>
+    </item>
+    <item>
+     <ID>S</ID>
+     <KEY>P_OBJT</KEY>
+     <ENTRY>.</ENTRY>
+     <LENGTH>9</LENGTH>
+     <SPLIT>D</SPLIT>
+    </item>
    </TPOOL>
   </asx:values>
  </asx:abap>

@@ -43,9 +43,16 @@ CLASS lcl_main DEFINITION.
     CLASS-METHODS:
       scan_return_value_to_tree_data IMPORTING io_value       TYPE REF TO zcl_ppr_scan_return_value_base
                                      RETURNING VALUE(rs_data) TYPE gty_tree_data,
-      append_structure_nodes_rec IMPORTING io_nodes            TYPE REF TO cl_salv_nodes
-                                           iv_parent_node_key  TYPE salv_de_node_key
-                                           io_parent_structure TYPE REF TO zcl_ppr_scan_structure.
+      append_structure_nodes_rec IMPORTING io_nodes             TYPE REF TO cl_salv_nodes
+                                           iv_parent_node_key   TYPE salv_de_node_key
+                                           io_structure         TYPE REF TO zcl_ppr_scan_structure
+                                           iv_append_statements TYPE abap_bool
+                                           iv_append_tokens     TYPE abap_bool,
+      append_statement_node IMPORTING io_nodes           TYPE REF TO cl_salv_nodes
+                                      iv_parent_node_key TYPE salv_de_node_key
+                                      io_statement       TYPE REF TO zcl_ppr_scan_statement
+                                      iv_append_tokens   TYPE abap_bool
+                                      iv_show_structure  TYPE abap_bool.
     METHODS:
       read_source RAISING lcx_error,
       analyze RAISING lcx_error,
@@ -112,35 +119,11 @@ CLASS lcl_main IMPLEMENTATION.
         ).
 
         LOOP AT mo_result->mt_statements INTO DATA(lo_statement).
-          DATA(lo_statement_node) = mo_tree->get_nodes( )->add_node(
-            related_node   = lo_statement_root->get_key( )
-            relationship   = if_salv_c_node_relation=>last_child
-            text           = CONV #( lo_statement->get_statement_text( ) )
-            data_row       = scan_return_value_to_tree_data( lo_statement )
-          ).
-
-          DATA(lo_statement_tokens_node) = mo_tree->get_nodes( )->add_node(
-            related_node   = lo_statement_node->get_key( )
-            relationship   = if_salv_c_node_relation=>last_child
-            text           = 'Tokens'
-            folder         = abap_true
-          ).
-          LOOP AT lo_statement->get_tokens( ) INTO DATA(lo_token).
-            mo_tree->get_nodes( )->add_node(
-              related_node   = lo_statement_tokens_node->get_key( )
-              relationship   = if_salv_c_node_relation=>last_child
-              data_row       = scan_return_value_to_tree_data( lo_token )
-              text           = CONV #( lo_token->get_token_text( ) )
-            ).
-          ENDLOOP.
-
-          DATA(lo_structure) = lo_statement->get_structure( ).
-          DATA(lo_statement_structure_node) = mo_tree->get_nodes( )->add_node(
-            related_node   = lo_statement_node->get_key( )
-            relationship   = if_salv_c_node_relation=>last_child
-            data_row       = scan_return_value_to_tree_data( lo_structure )
-            text           = CONV #( lo_structure->get_description( ) )
-          ).
+          append_statement_node( io_nodes           = mo_tree->get_nodes( )
+                                 iv_parent_node_key = lo_statement_root->get_key( )
+                                 io_statement       = lo_statement
+                                 iv_append_tokens   = abap_true
+                                 iv_show_structure  = abap_true ).
         ENDLOOP.
 
         LOOP AT mo_result->mt_structures INTO DATA(lo_structure2).
@@ -148,16 +131,11 @@ CLASS lcl_main IMPLEMENTATION.
             CONTINUE.
           ENDIF.
 
-          DATA(lo_structure_node) = mo_tree->get_nodes( )->add_node(
-            related_node   = lo_structure_root->get_key( )
-            relationship   = if_salv_c_node_relation=>last_child
-            text           = CONV #( lo_structure2->get_structure_type_text( ) )
-            data_row       = scan_return_value_to_tree_data( lo_structure2 )
-          ).
-
-          append_structure_nodes_rec( io_nodes            = mo_tree->get_nodes( )
-                                      iv_parent_node_key  = lo_structure_node->get_key( )
-                                      io_parent_structure = lo_structure2 ).
+          append_structure_nodes_rec( io_nodes             = mo_tree->get_nodes( )
+                                      iv_parent_node_key   = lo_structure_root->get_key( )
+                                      io_structure         = lo_structure2
+                                      iv_append_statements = abap_true
+                                      iv_append_tokens     = abap_true ).
         ENDLOOP.
 
         lo_root->expand( ).
@@ -233,17 +211,64 @@ CLASS lcl_main IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD append_structure_nodes_rec.
-    LOOP AT io_parent_structure->get_sub_structures( ) INTO DATA(lo_structure).
-      DATA(lo_structure_node) = io_nodes->add_node(
-        related_node   = iv_parent_node_key
-        relationship   = if_salv_c_node_relation=>last_child
-        text           = CONV #( lo_structure->get_structure_type_text( ) )
-        data_row       = scan_return_value_to_tree_data( lo_structure )
-      ).
-      append_structure_nodes_rec( io_nodes            = io_nodes
-                                  iv_parent_node_key  = lo_structure_node->get_key( )
-                                  io_parent_structure = lo_structure ).
+    DATA(lo_structure_node) = io_nodes->add_node(
+      related_node   = iv_parent_node_key
+      relationship   = if_salv_c_node_relation=>last_child
+      text           = CONV #( io_structure->get_structure_type_text( ) )
+      data_row       = scan_return_value_to_tree_data( io_structure )
+      collapsed_icon = CONV #( icon_structure )
+      expanded_icon  = CONV #( icon_structure )
+    ).
+
+    IF iv_append_statements = abap_true. "AND lines( io_structure->get_sub_structures( ) ) = 0.
+      LOOP AT io_structure->get_statements( ) INTO DATA(lo_statement).
+        append_statement_node( io_nodes           = io_nodes
+                               iv_parent_node_key = lo_structure_node->get_key( )
+                               iv_show_structure  = abap_false
+                               iv_append_tokens   = abap_true
+                               io_statement       = lo_statement ).
+      ENDLOOP.
+    ENDIF.
+
+    LOOP AT io_structure->get_sub_structures( ) INTO DATA(lo_structure).
+      append_structure_nodes_rec( io_nodes             = io_nodes
+                                  iv_parent_node_key   = lo_structure_node->get_key( )
+                                  io_structure         = lo_structure
+                                  iv_append_statements = iv_append_statements
+                                  iv_append_tokens     = iv_append_tokens ).
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD append_statement_node.
+    DATA(lo_statement_node) = io_nodes->add_node(
+      related_node   = iv_parent_node_key
+      relationship   = if_salv_c_node_relation=>last_child
+      text           = CONV #( io_statement->get_statement_text( ) )
+      data_row       = scan_return_value_to_tree_data( io_statement )
+      collapsed_icon = CONV #( icon_oo_method )
+      expanded_icon  = CONV #( icon_oo_method )
+    ).
+
+    IF iv_append_tokens = abap_true.
+      LOOP AT io_statement->get_tokens( ) INTO DATA(lo_token).
+        io_nodes->add_node(
+          related_node   = lo_statement_node->get_key( )
+          relationship   = if_salv_c_node_relation=>last_child
+          data_row       = scan_return_value_to_tree_data( lo_token )
+          text           = CONV #( lo_token->get_token_text( ) )
+          collapsed_icon = CONV #( icon_abc )
+          expanded_icon  = CONV #( icon_abc )
+        ).
+      ENDLOOP.
+    ENDIF.
+
+    IF iv_show_structure = abap_true.
+      append_structure_nodes_rec( io_nodes             = io_nodes
+                                  iv_parent_node_key   = lo_statement_node->get_key( )
+                                  io_structure         = io_statement->get_structure( )
+                                  iv_append_statements = abap_false
+                                  iv_append_tokens     = abap_false ).
+    ENDIF.
   ENDMETHOD.
 ENDCLASS.
 

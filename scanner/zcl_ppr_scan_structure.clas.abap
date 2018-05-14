@@ -47,8 +47,12 @@ CLASS zcl_ppr_scan_structure IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD get_statements.
-    DO ms_structure-stmnt_from - ms_structure-stmnt_to + 1 TIMES.
-      APPEND mo_scan_result->get_statement_by_id( ms_structure-stmnt_from + sy-index - 1 ) TO rt_statements.
+    DATA(lv_from) = COND #( WHEN ms_structure-stmnt_from < ms_structure-stmnt_to
+                            THEN ms_structure-stmnt_from ELSE ms_structure-stmnt_to ).
+    DATA(lv_to) = COND #( WHEN ms_structure-stmnt_to > ms_structure-stmnt_from
+                          THEN ms_structure-stmnt_to ELSE ms_structure-stmnt_from ).
+    DO lv_to - lv_from + 1 TIMES.
+      APPEND mo_scan_result->get_statement_by_id( lv_from + sy-index - 1 ) TO rt_statements.
     ENDDO.
   ENDMETHOD.
 

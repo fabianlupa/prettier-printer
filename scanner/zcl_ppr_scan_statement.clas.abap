@@ -39,14 +39,16 @@ CLASS zcl_ppr_scan_statement IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD get_tokens.
-    DO ms_statement-to - ms_statement-from + 1 TIMES.
-      APPEND mo_scan_result->get_token_by_id( ms_statement-from + sy-index - 1 ) TO rt_tokens.
+    DATA(lv_from) = COND #( WHEN ms_statement-from < ms_statement-to
+                            THEN ms_statement-from ELSE ms_statement-to ).
+    DATA(lv_to) = COND #( WHEN ms_statement-to > ms_statement-from
+                          THEN ms_statement-to ELSE ms_statement-from ).
+    DO lv_to - lv_from + 1 TIMES.
+      APPEND mo_scan_result->get_token_by_id( lv_from + sy-index - 1 ) TO rt_tokens.
     ENDDO.
   ENDMETHOD.
 
   METHOD get_structure.
-*    " Get structure of the first token in the statement
-*    ro_structure = mo_scan_result->get_token_by_id( ms_statement-from )->get_structure( ).
     ro_structure = mo_scan_result->get_structure_by_id( ms_statement-struc ).
   ENDMETHOD.
 
