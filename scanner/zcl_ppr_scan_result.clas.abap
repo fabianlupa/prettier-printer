@@ -27,7 +27,11 @@ CLASS zcl_ppr_scan_result DEFINITION
                           RETURNING VALUE(ro_structure) TYPE REF TO zcl_ppr_scan_structure,
       get_return_value_generic IMPORTING iv_type                TYPE string
                                          iv_id                  TYPE i
-                               RETURNING VALUE(ro_return_value) TYPE REF TO zcl_ppr_scan_return_value_base.
+                               RETURNING VALUE(ro_return_value) TYPE REF TO zcl_ppr_scan_return_value_base,
+      get_statements_by_line IMPORTING iv_line              TYPE i
+                             RETURNING VALUE(rt_statements) TYPE gty_statement_object_tab,
+      get_tokens_by_line IMPORTING iv_line          TYPE i
+                         RETURNING VALUE(rt_tokens) TYPE gty_token_object_tab.
     DATA:
       mt_source     TYPE stringtab READ-ONLY,
       mt_statements TYPE gty_statement_object_tab READ-ONLY,
@@ -87,5 +91,25 @@ CLASS zcl_ppr_scan_result IMPLEMENTATION.
       THEN get_structure_by_id( iv_id )
     ).
     ASSERT ro_return_value IS BOUND.
+  ENDMETHOD.
+
+  METHOD get_statements_by_line.
+    LOOP AT mt_statements INTO DATA(lo_statement).
+      DATA(lv_first_line_number) = lo_statement->get_first_line_number( ).
+      DATA(lv_last_line_number) = lo_statement->get_last_line_number( ).
+
+      IF lv_first_line_number = iv_line OR
+         ( lv_first_line_number < iv_line AND lv_last_line_number >= iv_line ).
+        APPEND lo_statement TO rt_statements.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+  METHOD get_tokens_by_line.
+    LOOP AT mt_tokens INTO DATA(lo_token).
+      IF lo_token->get_row( ) = iv_line.
+        APPEND lo_token TO rt_tokens.
+      ENDIF.
+    ENDLOOP.
   ENDMETHOD.
 ENDCLASS.

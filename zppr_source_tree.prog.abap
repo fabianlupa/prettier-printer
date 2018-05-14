@@ -181,23 +181,40 @@ CLASS lcl_main IMPLEMENTATION.
     DATA(lo_value) = mo_result->get_return_value_generic( iv_type = lr_data->type iv_id = lr_data->id ).
 
     DATA(li_output) = cl_demo_output=>new(
-      )->write_text( lo_value->get_description( )
-      )->write( data = lo_value->mv_id name = 'ID'
-      )->write( data = lo_value->mv_type_name name = 'TYPE'
+      )->write_data( value = lo_value->get_description( ) name = 'Description'
+      )->write_data( value = lo_value->mv_id name = 'ID'
+      )->write_data( value = lo_value->mv_type_name name = 'TYPE'
       )->begin_section( 'Data' ).
 
     CASE lo_value->mv_type_name.
       WHEN zcl_ppr_scan_statement=>gc_result_type_name.
         DATA(lo_statement) = CAST zcl_ppr_scan_statement( lo_value ).
-        li_output->write_data( lo_statement->ms_statement ).
+        li_output->write_data( lo_statement->ms_statement
+          )->write_data( value = lo_statement->is_statement_first_in_line( ) name = 'First in line'
+          )->write_data( value = lo_statement->is_part_of_chained_statement( ) name = 'Part of chain'
+          )->write_data( value = lo_statement->get_first_line_number( ) name = 'First line'
+          )->write_data( value = lo_statement->get_last_line_number( ) name = 'Last line'
+          )->write_data( value = lo_statement->get_source( ) name = 'Source (might include other statements)'
+          )->write_data( value = lo_statement->get_statement_text( ) name = 'Tokens in statement'
+          )->write_data( value = CONV i( lines( lo_statement->get_tokens( ) ) ) name = 'Tokens count'
+          )->write_data( value = lo_statement->get_statement_type_name( ) name = 'Statement type name' ).
 
       WHEN zcl_ppr_scan_token=>gc_result_type_name.
         DATA(lo_token) = CAST zcl_ppr_scan_token( lo_value ).
-        li_output->write_data( lo_token->ms_token ).
+        li_output->write_data( lo_token->ms_token
+          )->write_data( value = lo_token->get_horizontal_offset( ) name = 'Horizontal offset'
+          )->write_data( value = lo_token->get_row( ) name = 'Row'
+          )->write_data( value = lo_token->get_token_text( ) name = 'Token text'
+          )->write_data( value = lo_token->get_token_type_text( ) name = 'Token type text' ).
 
       WHEN zcl_ppr_scan_structure=>gc_result_type_name.
         DATA(lo_structure) = CAST zcl_ppr_scan_structure( lo_value ).
-        li_output->write_data( lo_structure->ms_structure ).
+        li_output->write_data( lo_structure->ms_structure
+          )->write_data( value = lo_structure->get_structure_type_text( ) name = 'Structure type text'
+          )->write_data( value = lo_structure->has_parent_structure( ) name = 'Has parent structure'
+          )->write_data( value = CONV i( lines( lo_structure->get_sub_structures( ) ) ) name = 'Children count'
+          )->write_data( value = lo_structure->has_special_start_statement( ) name = 'Has special start statement'
+          )->write_data( value = lo_structure->has_special_end_statement( ) name = 'Has special end statement' ).
 
     ENDCASE.
 

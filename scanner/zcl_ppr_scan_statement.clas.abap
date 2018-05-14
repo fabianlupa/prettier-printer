@@ -21,7 +21,8 @@ CLASS zcl_ppr_scan_statement DEFINITION
       get_first_line_number RETURNING VALUE(rv_line) TYPE i,
       get_last_line_number RETURNING VALUE(rv_line) TYPE i,
       get_source RETURNING VALUE(rt_source) TYPE stringtab,
-      is_part_of_chained_statement RETURNING VALUE(rv_is_chained) TYPE abap_bool.
+      is_part_of_chained_statement RETURNING VALUE(rv_is_chained) TYPE abap_bool,
+      is_statement_first_in_line RETURNING VALUE(rv_first) TYPE abap_bool.
     DATA:
       ms_statement TYPE sstmnt READ-ONLY.
   PROTECTED SECTION.
@@ -127,5 +128,13 @@ CLASS zcl_ppr_scan_statement IMPLEMENTATION.
 
   METHOD is_part_of_chained_statement.
     rv_is_chained = boolc( ms_statement-colonrow IS NOT INITIAL ).
+  ENDMETHOD.
+
+  METHOD is_statement_first_in_line.
+    LOOP AT mo_scan_result->get_statements_by_line( get_first_line_number( ) ) INTO DATA(lo_statement).
+      rv_first = boolc( lo_statement->mv_id = mv_id ).
+      EXIT.
+    ENDLOOP.
+    ASSERT sy-subrc = 0.
   ENDMETHOD.
 ENDCLASS.
