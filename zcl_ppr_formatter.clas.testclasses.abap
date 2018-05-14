@@ -55,34 +55,3 @@ CLASS ltcl_class_formatter IMPLEMENTATION.
     FREE mo_cut.
   ENDMETHOD.
 ENDCLASS.
-
-CLASS ltcl_source_scanner DEFINITION DEFERRED.
-CLASS zcl_ppr_formatter DEFINITION LOCAL FRIENDS ltcl_source_scanner.
-
-CLASS ltcl_source_scanner DEFINITION
-  FOR TESTING
-  RISK LEVEL HARMLESS
-  DURATION SHORT
-  CREATE PUBLIC.
-
-  PUBLIC SECTION.
-    METHODS:
-      scan FOR TESTING.
-  PROTECTED SECTION.
-  PRIVATE SECTION.
-ENDCLASS.
-
-CLASS ltcl_source_scanner IMPLEMENTATION.
-  METHOD scan.
-    DATA(lt_code) = VALUE stringtab(
-      ( |CLASS lcl_test DEFINITION.| )
-      ( |  PUBLIC SECTION.| )
-      ( |    METHODS meth1.| )
-      ( |    METHODS meth2.| )
-      ( |  PROTECTED SECTION.| )
-      ( |  PRIVATE SECTION.| )
-      ( |ENDCLASS.| )
-    ).
-    zcl_ppr_formatter=>scan_source( lt_code ).
-  ENDMETHOD.
-ENDCLASS.
