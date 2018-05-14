@@ -33,12 +33,13 @@ CLASS zcl_ppr_source_scanner IMPLEMENTATION.
       TOKENS INTO et_tokens
       STATEMENTS INTO et_statements
       STRUCTURES INTO et_structures
+      PRESERVING IDENTIFIER ESCAPING
       WITH ANALYSIS
       WITH COMMENTS
-      WITH BLOCKS
-      WITH DECLARATIONS
       WITH PRAGMAS '*'
-      PRESERVING IDENTIFIER ESCAPING
       WITHOUT TRMAC.
+    IF sy-subrc <> 0.
+      ASSERT 1 = 2 ##TODO.
+    ENDIF.
   ENDMETHOD.
 ENDCLASS.

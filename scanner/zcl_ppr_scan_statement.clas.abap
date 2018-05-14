@@ -88,9 +88,13 @@ CLASS zcl_ppr_scan_statement IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD get_statement_text.
+    DATA: lt_token_texts TYPE stringtab.
+
     LOOP AT get_tokens( ) INTO DATA(lo_token).
-      rv_text = |{ rv_text } { lo_token->get_token_text( ) }|.
+      APPEND lo_token->get_token_text( ) TO lt_token_texts.
     ENDLOOP.
+
+    CONCATENATE LINES OF lt_token_texts INTO rv_text SEPARATED BY ` `.
   ENDMETHOD.
 
   METHOD get_first_line_number.
