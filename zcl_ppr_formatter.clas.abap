@@ -39,8 +39,12 @@ CLASS zcl_ppr_formatter IMPLEMENTATION.
     DATA(lt_source) = mi_source_provider->get_source( iv_object_type = iv_object_type
                                                       iv_object_name = iv_object_name
                                                       iv_state       = 'A' ).
-    format_source( it_source        = lt_source
-                   io_configuration = io_configuration ).
+    DATA(lt_formatted) = format_source( it_source        = lt_source
+                                        io_configuration = io_configuration ).
+
+    LOOP AT lt_formatted ASSIGNING FIELD-SYMBOL(<lv_line>).
+      WRITE: / <lv_line>. " TODO remove this
+    ENDLOOP.
     ##TODO. " Save
   ENDMETHOD.
 

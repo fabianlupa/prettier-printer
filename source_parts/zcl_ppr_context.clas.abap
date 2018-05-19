@@ -45,8 +45,22 @@ CLASS zcl_ppr_context IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD zif_ppr_formattable~format.
+    DATA: lt_late_statements TYPE STANDARD TABLE OF REF TO zcl_ppr_statement.
+
+    LOOP AT mt_statements INTO DATA(lo_statement).
+      IF lo_statement->format_after_child_contexts( ) = abap_false.
+        APPEND LINES OF lo_statement->zif_ppr_formattable~format( io_configuration ) TO rt_formatted.
+      ELSE.
+        APPEND lo_statement TO lt_late_statements.
+      ENDIF.
+    ENDLOOP.
+
     LOOP AT mt_children INTO DATA(lo_child).
       APPEND LINES OF lo_child->zif_ppr_formattable~format( io_configuration ) TO rt_formatted.
+    ENDLOOP.
+
+    LOOP AT lt_late_statements INTO DATA(lo_late_statement).
+      APPEND LINES OF lo_late_statement->zif_ppr_formattable~format( io_configuration ) TO rt_formatted.
     ENDLOOP.
   ENDMETHOD.
 

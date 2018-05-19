@@ -18,8 +18,11 @@ CLASS zcl_ppr_scan_structure DEFINITION
       has_special_end_statement RETURNING VALUE(rv_true) TYPE abap_bool,
       get_statements RETURNING VALUE(rt_statements) TYPE zcl_ppr_scan_result=>gty_statement_object_tab,
       get_sub_structures RETURNING VALUE(rt_structures) TYPE zcl_ppr_scan_result=>gty_structure_object_tab,
+      get_all_sub_structures RETURNING VALUE(rt_structures) TYPE zcl_ppr_scan_result=>gty_structure_object_tab,
       get_parent_structure RETURNING VALUE(ro_parent) TYPE REF TO zcl_ppr_scan_structure,
-      has_parent_structure RETURNING VALUE(rv_true) TYPE abap_bool.
+      has_parent_structure RETURNING VALUE(rv_true) TYPE abap_bool,
+      is_descendant_of_mine IMPORTING io_candidate   TYPE REF TO zcl_ppr_scan_structure
+                            RETURNING VALUE(rv_true) TYPE abap_bool.
     DATA:
       ms_structure TYPE sstruc READ-ONLY.
   PROTECTED SECTION.
@@ -86,6 +89,13 @@ CLASS zcl_ppr_scan_structure IMPLEMENTATION.
     ENDDO.
   ENDMETHOD.
 
+  METHOD get_all_sub_structures.
+    LOOP AT get_sub_structures( ) INTO DATA(lo_child).
+      APPEND lo_child TO rt_structures.
+      APPEND LINES OF lo_child->get_all_sub_structures( ) TO rt_structures.
+    ENDLOOP.
+  ENDMETHOD.
+
   METHOD has_parent_structure.
     rv_true = boolc( ms_structure-back IS NOT INITIAL ).
   ENDMETHOD.
@@ -96,5 +106,10 @@ CLASS zcl_ppr_scan_structure IMPLEMENTATION.
 
   METHOD has_special_start_statement.
     rv_true = ms_structure-key_end.
+  ENDMETHOD.
+
+  METHOD is_descendant_of_mine.
+    DATA(lt_sub_structures) = get_all_sub_structures( ).
+    rv_true = boolc( line_exists( lt_sub_structures[ table_line = io_candidate ] ) ).
   ENDMETHOD.
 ENDCLASS.

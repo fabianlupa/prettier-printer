@@ -15,15 +15,17 @@ CLASS zcl_ppr_hierarchy_factory DEFINITION
     CLASS-METHODS:
       build_contexts IMPORTING it_structures      TYPE zcl_ppr_scan_result=>gty_structure_object_tab
                                io_parent          TYPE REF TO zcl_ppr_context OPTIONAL
-                     RETURNING VALUE(rt_contexts) TYPE gty_context_tab.
+                     RETURNING VALUE(rt_contexts) TYPE gty_context_tab,
+      get_relevant_statements IMPORTING io_structure         TYPE REF TO zcl_ppr_scan_structure
+                                        it_structures        TYPE zcl_ppr_scan_result=>gty_structure_object_tab
+                              RETURNING VALUE(rt_statements) TYPE zcl_ppr_scan_result=>gty_statement_object_tab.
 ENDCLASS.
 
 
 
 CLASS zcl_ppr_hierarchy_factory IMPLEMENTATION.
   METHOD get_context_hierarchy_by_scan.
-    DATA: lt_top_level_structures TYPE STANDARD TABLE OF REF TO zcl_ppr_scan_structure,
-          lo_top                  TYPE REF TO zcl_ppr_context.
+    DATA: lt_top_level_structures TYPE STANDARD TABLE OF REF TO zcl_ppr_scan_structure.
 
     LOOP AT io_result->mt_structures INTO DATA(lo_structure).
       IF lo_structure->has_parent_structure( ) = abap_true.
@@ -35,9 +37,9 @@ CLASS zcl_ppr_hierarchy_factory IMPLEMENTATION.
     DATA(lt_contexts) = build_contexts( lt_top_level_structures ).
 
     IF lines( lt_contexts ) = 1.
-      lo_top = lt_contexts[ 1 ].
+      ro_context = lt_contexts[ 1 ].
     ELSEIF lines(  lt_contexts ) > 1.
-      lo_top = NEW #( it_children = lt_contexts ).
+      ro_context = NEW #( it_children = lt_contexts ).
     ELSE.
       ASSERT 1 = 2 ##TODO.
     ENDIF.
@@ -47,7 +49,10 @@ CLASS zcl_ppr_hierarchy_factory IMPLEMENTATION.
     DATA: lt_statements TYPE STANDARD TABLE OF REF TO zcl_ppr_statement.
 
     LOOP AT it_structures INTO DATA(lo_structure).
-      LOOP AT lo_structure->get_statements( ) INTO DATA(lo_scan_statement).
+      LOOP AT get_relevant_statements( io_structure  = lo_structure
+                                       it_structures = lo_structure->get_all_sub_structures( ) )
+           INTO DATA(lo_scan_statement).
+*      LOOP AT lo_structure->get_statements( ) INTO DATA(lo_scan_statement).
         APPEND zcl_ppr_statement_factory=>get_statement_from_scan( lo_scan_statement ) TO lt_statements.
       ENDLOOP.
 
@@ -64,5 +69,26 @@ CLASS zcl_ppr_hierarchy_factory IMPLEMENTATION.
 
       CLEAR: lt_statements.
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD get_relevant_statements.
+    " Statements are referred to from multiple structures at different hierarchy levels. To get
+    " a single responsible structure find the most deeply nested structure that refers to the
+    " statement.
+
+    DATA(lt_statements) = io_structure->get_statements( ).
+    LOOP AT lt_statements INTO DATA(lo_statement).
+      LOOP AT it_structures INTO DATA(lo_structure) WHERE table_line <> io_structure.
+        DATA(lt_statements_of_other) = lo_structure->get_statements( ).
+        IF line_exists( lt_statements_of_other[ table_line->mv_id = lo_statement->mv_id ] ).
+          " Is the other statement more deeply nested? Assume they are in a hierarchy.
+          IF io_structure->is_descendant_of_mine( lo_structure ).
+            DELETE lt_statements WHERE table_line = lo_statement.
+          ENDIF.
+        ENDIF.
+      ENDLOOP.
+    ENDLOOP.
+
+    rt_statements = lt_statements.
   ENDMETHOD.
 ENDCLASS.
