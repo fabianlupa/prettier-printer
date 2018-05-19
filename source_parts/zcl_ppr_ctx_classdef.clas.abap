@@ -1,5 +1,5 @@
 "! Class definition context
-CLASS zcl_ppr_classdef_context DEFINITION
+CLASS zcl_ppr_ctx_classdef DEFINITION
   PUBLIC
   INHERITING FROM zcl_ppr_context
   FINAL
@@ -14,8 +14,8 @@ ENDCLASS.
 
 
 
-CLASS zcl_ppr_classdef_context IMPLEMENTATION.
+CLASS zcl_ppr_ctx_classdef IMPLEMENTATION.
   METHOD zif_ppr_formattable~format.
-    " Reorder sections
+    rt_formatted = super->format( io_configuration ).
   ENDMETHOD.
 ENDCLASS.

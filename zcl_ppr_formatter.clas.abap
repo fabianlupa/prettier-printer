@@ -74,7 +74,7 @@ CLASS zcl_ppr_formatter IMPLEMENTATION.
     ENDIF.
 
     mo_scan_result = mo_scanner->scan_source( mt_original_source ).
-    mo_context = zcl_ppr_hierarchy_factory=>get_context_hierarchy_by_scan( mo_scan_result ).
+    mo_context = zcl_ppr_context_factory=>get_context_hierarchy_by_scan( mo_scan_result ).
 
     rt_formatted = mo_context->format( io_configuration ).
   ENDMETHOD.

@@ -1,5 +1,5 @@
 "! Context hierarchy factory
-CLASS zcl_ppr_hierarchy_factory DEFINITION
+CLASS zcl_ppr_context_factory DEFINITION
   PUBLIC
   FINAL
   CREATE PUBLIC.
@@ -23,7 +23,7 @@ ENDCLASS.
 
 
 
-CLASS zcl_ppr_hierarchy_factory IMPLEMENTATION.
+CLASS zcl_ppr_context_factory IMPLEMENTATION.
   METHOD get_context_hierarchy_by_scan.
     DATA: lt_top_level_structures TYPE STANDARD TABLE OF REF TO zcl_ppr_scan_structure.
 
@@ -46,26 +46,44 @@ CLASS zcl_ppr_hierarchy_factory IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD build_contexts.
-    DATA: lt_statements TYPE STANDARD TABLE OF REF TO zcl_ppr_statement.
+    DATA: lt_statements  TYPE STANDARD TABLE OF REF TO zcl_ppr_statement,
+          lo_new_context TYPE REF TO zcl_ppr_context.
 
     LOOP AT it_structures INTO DATA(lo_structure).
       LOOP AT get_relevant_statements( io_structure  = lo_structure
                                        it_structures = lo_structure->get_all_sub_structures( ) )
            INTO DATA(lo_scan_statement).
-*      LOOP AT lo_structure->get_statements( ) INTO DATA(lo_scan_statement).
         APPEND zcl_ppr_statement_factory=>get_statement_from_scan( lo_scan_statement ) TO lt_statements.
       ENDLOOP.
 
-      APPEND NEW #(
-        io_parent     = io_parent
-        it_statements = lt_statements
-      ) TO rt_contexts REFERENCE INTO DATA(lr_new).
+      CASE lo_structure->get_structure_type( ).
+        WHEN zcl_ppr_constants=>gc_scan_struc_types-class.
+          IF lo_structure->has_parent_structure( ) AND
+             lo_structure->get_parent_structure( )->get_structure_type( ) <> zcl_ppr_constants=>gc_scan_struc_types-class.
+            lo_new_context = NEW zcl_ppr_ctx_classdef(
+              io_parent     = io_parent
+              it_statements = lt_statements
+            ).
+          ELSE.
+            lo_new_context = NEW #(
+              io_parent     = io_parent
+              it_statements = lt_statements
+            ).
+          ENDIF.
+        WHEN OTHERS.
+          lo_new_context = NEW #(
+            io_parent     = io_parent
+            it_statements = lt_statements
+          ).
+      ENDCASE.
+
+      APPEND lo_new_context TO rt_contexts.
 
       DATA(lt_sub_contexts) = build_contexts(
         it_structures = lo_structure->get_sub_structures( )
-        io_parent     = lr_new->*
+        io_parent     = lo_new_context
       ).
-      lr_new->*->set_children( lt_sub_contexts ).
+      lo_new_context->set_children( lt_sub_contexts ).
 
       CLEAR: lt_statements.
     ENDLOOP.
