@@ -17,6 +17,8 @@ CLASS zcl_ppr_scan_structure DEFINITION
       has_special_start_statement RETURNING VALUE(rv_true) TYPE abap_bool,
       has_special_end_statement RETURNING VALUE(rv_true) TYPE abap_bool,
       get_statements RETURNING VALUE(rt_statements) TYPE zcl_ppr_scan_result=>gty_statement_object_tab,
+      get_statement IMPORTING iv_index            TYPE i
+                    RETURNING VALUE(ro_statement) TYPE REF TO zcl_ppr_scan_statement,
       get_sub_structures RETURNING VALUE(rt_structures) TYPE zcl_ppr_scan_result=>gty_structure_object_tab,
       get_all_sub_structures RETURNING VALUE(rt_structures) TYPE zcl_ppr_scan_result=>gty_structure_object_tab,
       get_parent_structure RETURNING VALUE(ro_parent) TYPE REF TO zcl_ppr_scan_structure,
@@ -57,6 +59,11 @@ CLASS zcl_ppr_scan_structure IMPLEMENTATION.
     DO lv_to - lv_from + 1 TIMES.
       APPEND mo_scan_result->get_statement_by_id( lv_from + sy-index - 1 ) TO rt_statements.
     ENDDO.
+  ENDMETHOD.
+
+  METHOD get_statement.
+    DATA(lt_statements) = get_statements( ).
+    ro_statement = lt_statements[ iv_index ].
   ENDMETHOD.
 
   METHOD get_structure_type.

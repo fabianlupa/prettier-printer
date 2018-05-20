@@ -18,7 +18,7 @@ CLASS zcl_ppr_statement_factory IMPLEMENTATION.
   METHOD get_statement_from_scan.
     CASE io_scan_statement->get_structure( )->get_structure_type( ).
       WHEN zcl_ppr_constants=>gc_scan_struc_types-alternation.
-*        ro_statement = NEW zcl_ppr_stmnt_condition( io_scan_statement ).
+        ro_statement = NEW zcl_ppr_stmnt_condition( io_scan_statement ).
 *      WHEN zcl_ppr_constants=>gc_scan_stmnt_types-standard.
 
       WHEN OTHERS.

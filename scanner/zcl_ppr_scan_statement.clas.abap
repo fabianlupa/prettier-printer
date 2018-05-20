@@ -13,6 +13,8 @@ CLASS zcl_ppr_scan_statement DEFINITION
                             iv_id          TYPE i
                             io_scan_result TYPE REF TO zcl_ppr_scan_result,
       get_tokens RETURNING VALUE(rt_tokens) TYPE zcl_ppr_scan_result=>gty_token_object_tab,
+      get_token IMPORTING iv_index        TYPE i
+                RETURNING VALUE(ro_token) TYPE REF TO zcl_ppr_scan_token,
       get_structure RETURNING VALUE(ro_structure) TYPE REF TO zcl_ppr_scan_structure,
       get_description REDEFINITION,
       get_statement_type RETURNING VALUE(rv_type) TYPE stmnt_type,
@@ -47,6 +49,11 @@ CLASS zcl_ppr_scan_statement IMPLEMENTATION.
     DO lv_to - lv_from + 1 TIMES.
       APPEND mo_scan_result->get_token_by_id( lv_from + sy-index - 1 ) TO rt_tokens.
     ENDDO.
+  ENDMETHOD.
+
+  METHOD get_token.
+    DATA(lt_tokens) = get_tokens( ).
+    ro_token = lt_tokens[ iv_index ].
   ENDMETHOD.
 
   METHOD get_structure.

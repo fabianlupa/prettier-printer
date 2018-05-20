@@ -46,8 +46,9 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD build_contexts.
-    DATA: lt_statements  TYPE STANDARD TABLE OF REF TO zcl_ppr_statement,
-          lo_new_context TYPE REF TO zcl_ppr_context.
+    DATA: lt_statements     TYPE STANDARD TABLE OF REF TO zcl_ppr_statement,
+          lo_new_context    TYPE REF TO zcl_ppr_context,
+          lt_sub_structures TYPE STANDARD TABLE OF REF TO zcl_ppr_scan_structure.
 
     LOOP AT it_structures INTO DATA(lo_structure).
       LOOP AT get_relevant_statements( io_structure  = lo_structure
@@ -63,18 +64,48 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
             lo_new_context = NEW zcl_ppr_ctx_classdef(
               io_parent     = io_parent
               it_statements = lt_statements
+              io_scan_structure = lo_structure
             ).
           ELSE.
             lo_new_context = NEW #(
               io_parent     = io_parent
               it_statements = lt_statements
+              io_scan_structure = lo_structure
             ).
           ENDIF.
+          lt_sub_structures = lo_structure->get_sub_structures( ).
+        WHEN zcl_ppr_constants=>gc_scan_struc_types-alternation.
+          " IF ... ENDIF, TRY ... ENDTRY
+*          LOOP AT lo_structure->get_sub_structures( ) INTO DATA(lo_cond_sub_structure).
+*            INSERT lo_cond_sub_structure->get_statements( ) INTO lt_statements INDEX lines( lt_statements ) - 1.
+*          ENDLOOP.
+          IF lo_structure->get_statement( 1 )->get_token( 1 )->get_token_text( ) = 'IF'.
+            lo_new_context = NEW zcl_ppr_ctx_condition(
+              io_parent = io_parent
+              it_statements = lt_statements
+              io_scan_structure = lo_structure
+*              it_scan_structures_alt = lo_structure->get_sub_structures( )
+            ).
+          ELSE.
+            ASSERT 1 = 2 ##TODO.
+          ENDIF.
+          lt_sub_structures = lo_structure->get_sub_structures( ).
+        WHEN zcl_ppr_constants=>gc_scan_struc_types-condition.
+          " These are parts of an IF statement block, including the ELSEIF conditions
+          lo_new_context = NEW #(
+            io_parent     = io_parent
+            it_statements = lt_statements
+            io_scan_structure = lo_structure
+          ).
+          lt_sub_structures = lo_structure->get_sub_structures( ).
+
         WHEN OTHERS.
           lo_new_context = NEW #(
             io_parent     = io_parent
             it_statements = lt_statements
+            io_scan_structure = lo_structure
           ).
+          lt_sub_structures = lo_structure->get_sub_structures( ).
       ENDCASE.
 
       APPEND lo_new_context TO rt_contexts.
@@ -85,7 +116,7 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
       ).
       lo_new_context->set_children( lt_sub_contexts ).
 
-      CLEAR: lt_statements.
+      CLEAR: lt_statements, lt_sub_structures.
     ENDLOOP.
   ENDMETHOD.
 
@@ -101,6 +132,13 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
         IF line_exists( lt_statements_of_other[ table_line->mv_id = lo_statement->mv_id ] ).
           " Is the other statement more deeply nested? Assume they are in a hierarchy.
           IF io_structure->is_descendant_of_mine( lo_structure ).
+            ##TODO.
+            DATA(lt_direct) = io_structure->get_sub_structures( ).
+            IF io_structure->get_structure_type( ) = zcl_ppr_constants=>gc_scan_struc_types-condition AND
+               lo_structure->get_structure_type( ) = zcl_ppr_constants=>gc_scan_struc_types-alternation AND
+               line_exists( lt_direct[ table_line = lo_structure ] ).
+              CONTINUE.
+            ENDIF.
             DELETE lt_statements WHERE table_line = lo_statement.
           ENDIF.
         ENDIF.
