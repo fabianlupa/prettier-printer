@@ -13,9 +13,9 @@ CLASS zcl_ppr_ctx_classdef DEFINITION
         public    TYPE gty_section_type VALUE 'P',
         protected TYPE gty_section_type VALUE 'C',
         private   TYPE gty_section_type VALUE 'R',
+*        package   TYPE gty_section_type VALUE 'D', " Please come back package visibility
       END OF gc_section_types.
     METHODS:
-      zif_ppr_formattable~format REDEFINITION,
       get_section_by_type IMPORTING iv_type           TYPE gty_section_type
                           RETURNING VALUE(ro_section) TYPE REF TO zcl_ppr_context.
   PROTECTED SECTION.
@@ -25,13 +25,9 @@ ENDCLASS.
 
 
 CLASS zcl_ppr_ctx_classdef IMPLEMENTATION.
-  METHOD zif_ppr_formattable~format.
-    rt_formatted = super->format( io_configuration ).
-  ENDMETHOD.
-
   METHOD get_section_by_type.
     LOOP AT mt_children INTO DATA(lo_child).
-      IF lo_child->get_start_statement( )->get_statement_text( ) = SWITCH #( iv_type
+      IF to_upper( lo_child->get_start_statement( )->get_statement_text( ) ) = SWITCH #( iv_type
            WHEN gc_section_types-public    THEN 'PUBLIC SECTION'
            WHEN gc_section_types-protected THEN 'PROTECTED SECTION'
            WHEN gc_section_types-private   THEN 'PRIVATE SECTION'

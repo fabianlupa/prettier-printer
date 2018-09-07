@@ -20,7 +20,8 @@ INTERFACE zif_ppr_formatting_rule PUBLIC.
   METHODS:
     get_settings_group_name RETURNING VALUE(rv_name) TYPE ddgroup,
     get_formatting_relevancy RETURNING VALUE(rt_relevancy) TYPE gty_relevant_for_tab,
-    apply_rule IMPORTING ig_settings TYPE data
-                         ir_code     TYPE REF TO stringtab
-                         io_target   TYPE REF TO object.
+    apply_rule IMPORTING ig_settings                TYPE data
+                         ir_code                    TYPE REF TO stringtab
+                         io_target                  TYPE REF TO object
+               RETURNING VALUE(rv_rebuild_required) TYPE abap_bool.
 ENDINTERFACE.

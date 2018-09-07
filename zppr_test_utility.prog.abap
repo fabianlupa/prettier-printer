@@ -30,24 +30,25 @@ ENDCLASS.
 
 CLASS lcl_main IMPLEMENTATION.
   METHOD class_constructor.
-    gt_dummy_code = VALUE #(
-      ( `CLASS lcl_test DEFINITION.` )
-      ( `PUBLIC SECTION.` )
-      ( `   METHODS:`)
-      ( `     do_stuff IMPORTING iv_param TYPE clike.` )
-      ( `  PRIVATE SECTION.`)
-      ( `  ENDCLASS.` )
-      ( `` )
-      ( `` )
-      ( `CLASS lcl_test      IMPLEMENTATION   .` )
-      ( `  METHOD do_stuff.` )
-      ( `    IF 1 = 2.` )
-      ( `      DATA(lv_string) = |This is a text that spans across| &&` )
-      ( `                | multiple lines.|.` )
-      ( `    ENDIF.` )
-      ( `  ENDMETHOD.` )
-      ( `ENDCLASS.` )
-    ).
+    READ REPORT 'ZPPR_TEST' INTO gt_dummy_code STATE 'A'.
+*    gt_dummy_code = VALUE #(
+*      ( `CLASS lcl_test DEFINITION.` )
+*      ( `PUBLIC SECTION.` )
+*      ( `   METHODS:`)
+*      ( `     do_stuff IMPORTING iv_param TYPE clike.` )
+*      ( `  PRIVATE SECTION.`)
+*      ( `  ENDCLASS.` )
+*      ( `` )
+*      ( `` )
+*      ( `CLASS lcl_test      IMPLEMENTATION   .` )
+*      ( `  METHOD do_stuff.` )
+*      ( `    IF 1 = 2.` )
+*      ( `      DATA(lv_string) = |This is a text that spans across| &&` )
+*      ( `                | multiple lines.|.` )
+*      ( `    ENDIF.` )
+*      ( `  ENDMETHOD.` )
+*      ( `ENDCLASS.` )
+*    ).
   ENDMETHOD.
 
   METHOD run.

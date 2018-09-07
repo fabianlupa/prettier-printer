@@ -34,8 +34,12 @@ CLASS zcl_ppr_rule_reorder_cls_defs IMPLEMENTATION.
             data          TYPE lty_definition_tab,
           END OF ls_statements,
           lt_ordered_statements TYPE zcl_ppr_context=>gty_statement_tab.
+    FIELD-SYMBOLS: <ls_definition> TYPE lty_definition.
+
+*    BREAK-POINT.
 
     DATA(lo_context) = CAST zcl_ppr_ctx_classdef( io_target ).
+    DATA(lv_current_line) = lo_context->get_statement( 1 )->get_start_line( ).
 
     DATA(lo_section) = lo_context->get_section_by_type( zcl_ppr_ctx_classdef=>gc_section_types-public ).
     LOOP AT lo_section->get_statements( ) INTO DATA(lo_statement).
@@ -45,11 +49,27 @@ CLASS zcl_ppr_rule_reorder_cls_defs IMPLEMENTATION.
             identifier = lo_typedef->get_identifier( )
             statement  = lo_typedef
           ) INTO TABLE ls_statements-types.
+        WHEN TYPE zcl_ppr_stmnt_methdef INTO DATA(lo_methdef).
+          INSERT VALUE #(
+            identifier = lo_methdef->get_method_name( )
+            statement  = lo_methdef
+          ) INTO TABLE ls_statements-methods.
       ENDCASE.
     ENDLOOP.
 
-    LOOP AT ls_statements-types ASSIGNING FIELD-SYMBOL(<ls_statement>).
-      APPEND <ls_statement>-statement TO lt_ordered_statements.
+    LOOP AT ls_statements-types ASSIGNING <ls_definition>.
+      APPEND <ls_definition>-statement TO lt_ordered_statements.
+    ENDLOOP.
+    UNASSIGN <ls_definition>.
+
+    LOOP AT ls_statements-methods ASSIGNING <ls_definition>.
+      APPEND <ls_definition>-statement TO lt_ordered_statements.
+    ENDLOOP.
+    UNASSIGN <ls_definition>.
+
+    LOOP AT lt_ordered_statements INTO DATA(lo_ordered_statement).
+      lo_ordered_statement->set_start_line( lv_current_line ).
+      lv_current_line = lo_ordered_statement->get_end_line( ) + 1.
     ENDLOOP.
 
     lo_section->set_statements( lt_ordered_statements ).

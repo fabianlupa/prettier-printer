@@ -11,8 +11,7 @@ CLASS zcl_ppr_ctx_condition DEFINITION
       get_other_condition_statements RETURNING VALUE(rt_statements) TYPE gty_statement_tab,
       get_path_count RETURNING VALUE(rv_paths) TYPE i,
       get_path_context IMPORTING iv_index          TYPE i
-                       RETURNING VALUE(ro_context) TYPE REF TO zcl_ppr_context,
-      zif_ppr_formattable~format REDEFINITION.
+                       RETURNING VALUE(ro_context) TYPE REF TO zcl_ppr_context.
   PROTECTED SECTION.
   PRIVATE SECTION.
 ENDCLASS.
@@ -37,8 +36,5 @@ CLASS zcl_ppr_ctx_condition IMPLEMENTATION.
 
   METHOD get_path_count.
     rv_paths = lines( mt_children ).
-  ENDMETHOD.
-
-  METHOD zif_ppr_formattable~format.
   ENDMETHOD.
 ENDCLASS.
