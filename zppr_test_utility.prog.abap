@@ -115,8 +115,9 @@ CLASS lcl_main IMPLEMENTATION.
     ENDIF.
 
     DATA(lt_formatted) = lo_formatter->format_source(
-      it_source        = lt_source
-      io_configuration = lo_config
+      it_source          = lt_source
+      io_configuration   = lo_config
+      iv_run_standard_pp = abap_false
     ).
 
     mo_editor_right->set_text( lt_formatted ).

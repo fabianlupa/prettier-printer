@@ -60,20 +60,27 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
       CASE lo_structure->get_structure_type( ).
         WHEN zcl_ppr_constants=>gc_scan_struc_types-class.
           IF lo_structure->has_parent_structure( ) AND
-             lo_structure->get_parent_structure( )->get_structure_type( ) <> zcl_ppr_constants=>gc_scan_struc_types-class.
-            lo_new_context = NEW zcl_ppr_ctx_classdef(
-              io_parent     = io_parent
-              it_statements = lt_statements
-              io_scan_structure = lo_structure
-            ).
-          ELSE.
-            lo_new_context = NEW #(
-              io_parent     = io_parent
-              it_statements = lt_statements
-              io_scan_structure = lo_structure
-            ).
+             lo_structure->get_parent_structure( )->get_structure_type( ) <>
+             zcl_ppr_constants=>gc_scan_struc_types-class.
+
+            DATA(lt_tokens) = lo_structure->get_statement( 1 )->get_tokens( ).
+            IF lines( lt_tokens ) >= 3 AND to_upper( lt_tokens[ 3 ]->get_token_text( ) ) = 'IMPLEMENTATION'.
+              lo_new_context = NEW zcl_ppr_ctx_classimp(
+                io_parent     = io_parent
+                it_statements = lt_statements
+                io_scan_structure = lo_structure
+              ).
+              lt_sub_structures = lo_structure->get_sub_structures( ).
+            ELSE.
+              lo_new_context = NEW zcl_ppr_ctx_classdef(
+                io_parent     = io_parent
+                it_statements = lt_statements
+                io_scan_structure = lo_structure
+              ).
+              lt_sub_structures = lo_structure->get_sub_structures( ).
+            ENDIF.
           ENDIF.
-          lt_sub_structures = lo_structure->get_sub_structures( ).
+
         WHEN zcl_ppr_constants=>gc_scan_struc_types-alternation.
           " IF ... ENDIF, TRY ... ENDTRY
 *          LOOP AT lo_structure->get_sub_structures( ) INTO DATA(lo_cond_sub_structure).
@@ -98,15 +105,16 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
             io_scan_structure = lo_structure
           ).
           lt_sub_structures = lo_structure->get_sub_structures( ).
-
-        WHEN OTHERS.
-          lo_new_context = NEW #(
-            io_parent     = io_parent
-            it_statements = lt_statements
-            io_scan_structure = lo_structure
-          ).
-          lt_sub_structures = lo_structure->get_sub_structures( ).
       ENDCASE.
+
+      IF lo_new_context IS NOT BOUND.
+        lo_new_context = NEW #(
+          io_parent     = io_parent
+          it_statements = lt_statements
+          io_scan_structure = lo_structure
+        ).
+        lt_sub_structures = lo_structure->get_sub_structures( ).
+      ENDIF.
 
       APPEND lo_new_context TO rt_contexts.
 

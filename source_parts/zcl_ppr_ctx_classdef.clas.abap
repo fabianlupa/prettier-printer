@@ -6,9 +6,18 @@ CLASS zcl_ppr_ctx_classdef DEFINITION
   CREATE PUBLIC.
 
   PUBLIC SECTION.
+    TYPES:
+      gty_section_type TYPE c LENGTH 1.
+    CONSTANTS:
+      BEGIN OF gc_section_types,
+        public    TYPE gty_section_type VALUE 'P',
+        protected TYPE gty_section_type VALUE 'C',
+        private   TYPE gty_section_type VALUE 'R',
+      END OF gc_section_types.
     METHODS:
       zif_ppr_formattable~format REDEFINITION,
-      sort_sections_by_visibility.
+      get_section_by_type IMPORTING iv_type           TYPE gty_section_type
+                          RETURNING VALUE(ro_section) TYPE REF TO zcl_ppr_context.
   PROTECTED SECTION.
   PRIVATE SECTION.
 ENDCLASS.
@@ -17,24 +26,19 @@ ENDCLASS.
 
 CLASS zcl_ppr_ctx_classdef IMPLEMENTATION.
   METHOD zif_ppr_formattable~format.
-    sort_sections_by_visibility( ).
     rt_formatted = super->format( io_configuration ).
   ENDMETHOD.
 
-  METHOD sort_sections_by_visibility.
-    DATA: lt_sorted TYPE gty_context_tab.
-
+  METHOD get_section_by_type.
     LOOP AT mt_children INTO DATA(lo_child).
-*      IF lo_child->get_start_statement( )->
-      INSERT lo_child INTO lt_sorted INDEX SWITCH #(
-        lo_child->get_start_statement( )->get_statement_text( )
-        WHEN 'PUBLIC SECTION'    THEN 1
-        WHEN 'PROTECTED SECTION' THEN 2
-        WHEN 'PRIVATE SECTION'   THEN 3
-        ELSE lines( lt_sorted ) + 1
-      ).
+      IF lo_child->get_start_statement( )->get_statement_text( ) = SWITCH #( iv_type
+           WHEN gc_section_types-public    THEN 'PUBLIC SECTION'
+           WHEN gc_section_types-protected THEN 'PROTECTED SECTION'
+           WHEN gc_section_types-private   THEN 'PRIVATE SECTION'
+         ).
+        ro_section = lo_child.
+        EXIT.
+      ENDIF.
     ENDLOOP.
-
-    mt_children = lt_sorted.
   ENDMETHOD.
 ENDCLASS.

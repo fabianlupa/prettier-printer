@@ -12,7 +12,8 @@ CLASS zcl_ppr_formatting_rule_base DEFINITION
   PROTECTED SECTION.
     METHODS:
       apply_internal ABSTRACT IMPORTING ig_settings TYPE data
-                                        ir_code     TYPE REF TO stringtab.
+                                        ir_code     TYPE REF TO stringtab
+                                        io_target TYPE REF TO object.
   PRIVATE SECTION.
 ENDCLASS.
 
@@ -24,7 +25,7 @@ CLASS zcl_ppr_formatting_rule_base IMPLEMENTATION.
       EXPORTING
         code = ir_code.
 
-    apply_internal( ig_settings = ig_settings ir_code = ir_code ).
+    apply_internal( ig_settings = ig_settings ir_code = ir_code io_target = io_target ).
 
     RAISE EVENT zif_ppr_formatting_rule~after_application
       EXPORTING

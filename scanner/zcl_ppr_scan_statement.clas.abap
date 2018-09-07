@@ -24,7 +24,8 @@ CLASS zcl_ppr_scan_statement DEFINITION
       get_last_line_number RETURNING VALUE(rv_line) TYPE i,
       get_source RETURNING VALUE(rt_source) TYPE stringtab,
       is_part_of_chained_statement RETURNING VALUE(rv_is_chained) TYPE abap_bool,
-      is_statement_first_in_line RETURNING VALUE(rv_first) TYPE abap_bool.
+      is_statement_first_in_line RETURNING VALUE(rv_first) TYPE abap_bool,
+      get_dot_position RETURNING VALUE(rv_position) TYPE i.
     DATA:
       ms_statement TYPE sstmnt READ-ONLY.
   PROTECTED SECTION.
@@ -143,5 +144,9 @@ CLASS zcl_ppr_scan_statement IMPLEMENTATION.
       EXIT.
     ENDLOOP.
     ASSERT sy-subrc = 0.
+  ENDMETHOD.
+
+  METHOD get_dot_position.
+    rv_position = ms_statement-tcol.
   ENDMETHOD.
 ENDCLASS.

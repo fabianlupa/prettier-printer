@@ -29,8 +29,11 @@ ENDCLASS.
 
 CLASS zcl_ppr_rule_factory IMPLEMENTATION.
   METHOD init.
-    DATA: li_dummy           TYPE REF TO zif_ppr_formatting_rule,
-          lt_implementations TYPE seor_implementing_keys.
+    DATA: li_dummy                TYPE REF TO zif_ppr_formatting_rule,
+          lt_implementations      TYPE seor_implementing_keys,
+          lt_sub_classes          TYPE seor_implementing_keys,
+          lt_sub_class_collection TYPE seor_implementing_keys.
+    FIELD-SYMBOLS: <ls_implementation> TYPE seor_implementing_key.
 
     DATA(lo_descr) = CAST cl_abap_intfdescr(
                        CAST cl_abap_refdescr(
@@ -48,7 +51,25 @@ CLASS zcl_ppr_rule_factory IMPLEMENTATION.
         OTHERS       = 2.
     ASSERT sy-subrc = 0.
 
-    LOOP AT lt_implementations ASSIGNING FIELD-SYMBOL(<ls_implementation>).
+    LOOP AT lt_implementations ASSIGNING <ls_implementation>.
+      CALL FUNCTION 'SEO_CLASS_GET_ALL_SUBS'
+        EXPORTING
+          clskey  = VALUE seoclskey( clsname = <ls_implementation>-clsname )
+          version = '1'
+        IMPORTING
+          inhkeys = lt_sub_classes.
+      APPEND LINES OF lt_sub_classes TO lt_sub_class_collection.
+      CLEAR lt_sub_classes.
+    ENDLOOP.
+    APPEND LINES OF lt_sub_class_collection TO lt_implementations.
+    CLEAR lt_sub_class_collection.
+    UNASSIGN <ls_implementation>.
+
+    LOOP AT lt_implementations ASSIGNING <ls_implementation>.
+      IF CAST cl_abap_classdescr( cl_abap_typedescr=>describe_by_name( <ls_implementation>-clsname )
+           )->is_instantiatable( ) = abap_false.
+        CONTINUE.
+      ENDIF.
       CREATE OBJECT li_dummy TYPE (<ls_implementation>-clsname).
       INSERT VALUE #(
         classname = <ls_implementation>-clsname

@@ -19,10 +19,19 @@ CLASS zcl_ppr_statement_factory IMPLEMENTATION.
     CASE io_scan_statement->get_structure( )->get_structure_type( ).
       WHEN zcl_ppr_constants=>gc_scan_struc_types-alternation.
         ro_statement = NEW zcl_ppr_stmnt_condition( io_scan_statement ).
+
+      WHEN zcl_ppr_constants=>gc_scan_struc_types-declaration.
+        IF io_scan_statement->get_token( 1 )->get_token_text( ) = 'TYPES'.
+          ro_statement = NEW zcl_ppr_stmnt_typedef( io_scan_statement ).
+        ENDIF.
 *      WHEN zcl_ppr_constants=>gc_scan_stmnt_types-standard.
 
       WHEN OTHERS.
         ro_statement = NEW #( io_scan_statement ).
     ENDCASE.
+
+    IF ro_statement IS NOT BOUND.
+      ro_statement = NEW #( io_scan_statement ).
+    ENDIF.
   ENDMETHOD.
 ENDCLASS.

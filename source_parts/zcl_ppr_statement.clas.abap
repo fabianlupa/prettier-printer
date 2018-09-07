@@ -1,7 +1,8 @@
 "! Statement
 CLASS zcl_ppr_statement DEFINITION
   PUBLIC
-  CREATE PUBLIC.
+  CREATE PUBLIC
+  GLOBAL FRIENDS zif_ppr_formatting_rule.
 
   PUBLIC SECTION.
     INTERFACES:
@@ -10,7 +11,8 @@ CLASS zcl_ppr_statement DEFINITION
       constructor IMPORTING io_scan_statement TYPE REF TO zcl_ppr_scan_statement,
       remove_unnecessary_whitespace,
       format_after_child_contexts RETURNING VALUE(rv_late) TYPE abap_bool,
-      get_statement_text RETURNING VALUE(rv_text) TYPE string.
+      get_statement_text RETURNING VALUE(rv_text) TYPE string,
+      get_dot_position RETURNING VALUE(rv_position) TYPE i.
   PROTECTED SECTION.
     DATA:
       mo_scan_statement TYPE REF TO zcl_ppr_scan_statement,
@@ -27,32 +29,17 @@ CLASS zcl_ppr_statement IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD zif_ppr_formattable~format.
-    remove_unnecessary_whitespace( ).
+    DATA(lt_rules) = zcl_ppr_rule_factory=>get_rules_for_statement( me ).
+
+    LOOP AT lt_rules INTO DATA(lo_rule).
+      lo_rule->apply_rule( ig_settings = '' ir_code = REF #( mt_source ) io_target = me ).
+    ENDLOOP.
+
     rt_formatted = mt_source.
   ENDMETHOD.
 
   METHOD remove_unnecessary_whitespace.
-    CONSTANTS: lc_pattern TYPE string VALUE `  +`. " Boost doesn't allow ` {2,} for some reason?
 
-    DATA(lo_regex) = NEW cl_abap_regex( lc_pattern ).
-
-    IF mo_scan_statement->get_first_line_number( ) <> mo_scan_statement->get_last_line_number( ).
-      RETURN.
-    ENDIF.
-
-    LOOP AT mt_source ASSIGNING FIELD-SYMBOL(<lv_line>).
-      FIND REGEX `[^ ]` IN <lv_line> MATCH OFFSET DATA(lv_offset).
-      DATA(lo_matcher) = lo_regex->create_matcher( text = <lv_line> ).
-      WHILE lo_matcher->find_next( ) = abap_true.
-        lo_matcher->replace_found( ` ` ).
-      ENDWHILE.
-
-      <lv_line> = |{ repeat( val = ` ` occ = lv_offset ) }{ lo_matcher->text }|.
-
-*      FIND REGEX `[^ ]` IN <lv_line> MATCH OFFSET DATA(lv_offset).
-*      REPLACE ALL OCCURRENCES OF ` ` IN <lv_line> WITH ``.
-*      <lv_line> = |{ repeat( val = ` ` occ = lv_offset ) }{ <lv_line> }|.
-    ENDLOOP.
   ENDMETHOD.
 
   METHOD format_after_child_contexts.
@@ -65,5 +52,9 @@ CLASS zcl_ppr_statement IMPLEMENTATION.
 
   METHOD get_statement_text.
     rv_text = mo_scan_statement->get_statement_text( ).
+  ENDMETHOD.
+
+  METHOD get_dot_position.
+    rv_position = mo_scan_statement->get_dot_position( ).
   ENDMETHOD.
 ENDCLASS.
