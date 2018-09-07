@@ -7,7 +7,8 @@ CLASS zcl_ppr_ctx_empty DEFINITION
 
   PUBLIC SECTION.
     METHODS:
-      constructor IMPORTING io_parent TYPE REF TO zcl_ppr_context OPTIONAL,
+      constructor IMPORTING io_parent      TYPE REF TO zcl_ppr_context OPTIONAL
+                            iv_line_amount TYPE i DEFAULT 1,
       zif_ppr_source_container~get_line_count REDEFINITION,
       zif_ppr_source_container~get_source_code REDEFINITION,
       set_empty_line_amount IMPORTING iv_amount TYPE i,
@@ -15,7 +16,7 @@ CLASS zcl_ppr_ctx_empty DEFINITION
   PROTECTED SECTION.
   PRIVATE SECTION.
     DATA:
-      mv_empty_lines.
+      mv_empty_lines TYPE i.
 ENDCLASS.
 
 
@@ -41,5 +42,6 @@ CLASS zcl_ppr_ctx_empty IMPLEMENTATION.
 
   METHOD constructor.
     super->constructor( io_parent = io_parent ).
+    mv_empty_lines = iv_line_amount.
   ENDMETHOD.
 ENDCLASS.

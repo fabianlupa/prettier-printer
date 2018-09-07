@@ -13,7 +13,6 @@ CLASS zcl_ppr_ctx_classdef DEFINITION
         public    TYPE gty_section_type VALUE 'P',
         protected TYPE gty_section_type VALUE 'C',
         private   TYPE gty_section_type VALUE 'R',
-*        package   TYPE gty_section_type VALUE 'D', " Please come back package visibility
       END OF gc_section_types.
     METHODS:
       get_section_by_type IMPORTING iv_type           TYPE gty_section_type

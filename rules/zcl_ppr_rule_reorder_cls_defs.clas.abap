@@ -39,10 +39,14 @@ CLASS zcl_ppr_rule_reorder_cls_defs IMPLEMENTATION.
 *    BREAK-POINT.
 
     DATA(lo_context) = CAST zcl_ppr_ctx_classdef( io_target ).
-    DATA(lv_current_line) = lo_context->get_statement( 1 )->get_start_line( ).
 
     DATA(lo_section) = lo_context->get_section_by_type( zcl_ppr_ctx_classdef=>gc_section_types-public ).
     LOOP AT lo_section->get_statements( ) INTO DATA(lo_statement).
+      IF sy-tabix = 1.
+        " First statement is the SECTION statement itself
+        APPEND lo_statement TO lt_ordered_statements.
+        CONTINUE.
+      ENDIF.
       CASE TYPE OF lo_statement.
         WHEN TYPE zcl_ppr_stmnt_typedef INTO DATA(lo_typedef).
           INSERT VALUE #(
@@ -67,12 +71,8 @@ CLASS zcl_ppr_rule_reorder_cls_defs IMPLEMENTATION.
     ENDLOOP.
     UNASSIGN <ls_definition>.
 
-    LOOP AT lt_ordered_statements INTO DATA(lo_ordered_statement).
-      lo_ordered_statement->set_start_line( lv_current_line ).
-      lv_current_line = lo_ordered_statement->get_end_line( ) + 1.
-    ENDLOOP.
-
-    lo_section->set_statements( lt_ordered_statements ).
+*    lo_section->set_statements( lt_ordered_statements ).
+    lo_section->set_ordered_components( lt_ordered_statements ).
   ENDMETHOD.
 
   METHOD zif_ppr_formatting_rule~get_settings_group_name.
@@ -85,5 +85,4 @@ CLASS zcl_ppr_rule_reorder_cls_defs IMPLEMENTATION.
         classname = 'ZCL_PPR_CTX_CLASSDEF' )
     ).
   ENDMETHOD.
-
 ENDCLASS.

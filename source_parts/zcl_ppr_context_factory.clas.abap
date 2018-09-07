@@ -18,7 +18,10 @@ CLASS zcl_ppr_context_factory DEFINITION
                      RETURNING VALUE(rt_contexts) TYPE gty_context_tab,
       get_relevant_statements IMPORTING io_structure         TYPE REF TO zcl_ppr_scan_structure
                                         it_structures        TYPE zcl_ppr_scan_result=>gty_structure_object_tab
-                              RETURNING VALUE(rt_statements) TYPE zcl_ppr_scan_result=>gty_statement_object_tab.
+                              RETURNING VALUE(rt_statements) TYPE zcl_ppr_scan_result=>gty_statement_object_tab,
+      build_ordered_component_list IMPORTING it_contexts                  TYPE zcl_ppr_context=>gty_context_tab
+                                             it_statements                TYPE zcl_ppr_context=>gty_statement_tab
+                                   RETURNING VALUE(rt_ordered_components) TYPE zcl_ppr_context=>gty_source_component_tab.
 ENDCLASS.
 
 
@@ -100,31 +103,37 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
         WHEN zcl_ppr_constants=>gc_scan_struc_types-condition.
           " These are parts of an IF statement block, including the ELSEIF conditions
           lo_new_context = NEW #(
-            io_parent     = io_parent
-            it_statements = lt_statements
+            io_parent         = io_parent
+            it_statements     = lt_statements
             io_scan_structure = lo_structure
           ).
           lt_sub_structures = lo_structure->get_sub_structures( ).
       ENDCASE.
 
       IF lo_new_context IS NOT BOUND.
+        " Fallback solution as no specific context class has been determined
         lo_new_context = NEW #(
-          io_parent     = io_parent
-          it_statements = lt_statements
+          io_parent         = io_parent
+          it_statements     = lt_statements
           io_scan_structure = lo_structure
         ).
         lt_sub_structures = lo_structure->get_sub_structures( ).
       ENDIF.
 
-      APPEND lo_new_context TO rt_contexts.
-
       DATA(lt_sub_contexts) = build_contexts(
-        it_structures = lo_structure->get_sub_structures( )
+        it_structures = lt_sub_structures
         io_parent     = lo_new_context
       ).
       lo_new_context->set_children( lt_sub_contexts ).
+      lo_new_context->set_ordered_components( build_ordered_component_list(
+        it_contexts   = lt_sub_contexts
+        it_statements = lt_statements
+      ) ).
 
-      CLEAR: lt_statements, lt_sub_structures.
+      APPEND lo_new_context TO rt_contexts.
+
+      CLEAR: lt_statements, lt_sub_structures, lt_sub_contexts.
+      FREE lo_new_context.
     ENDLOOP.
   ENDMETHOD.
 
@@ -154,5 +163,53 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
     ENDLOOP.
 
     rt_statements = lt_statements.
+  ENDMETHOD.
+
+  METHOD build_ordered_component_list.
+    TYPES: BEGIN OF lty_sorted,
+             start_line TYPE i,
+             component  TYPE REF TO zif_ppr_source_container,
+           END OF lty_sorted.
+    DATA: lt_sorted TYPE SORTED TABLE OF lty_sorted WITH UNIQUE KEY start_line.
+
+    LOOP AT it_statements INTO DATA(lo_statement).
+      ##TODO. " This insert fails with chained statements
+      INSERT VALUE #(
+        start_line = lo_statement->mo_scan_statement->get_first_line_number( )
+        component  = lo_statement
+      ) INTO TABLE lt_sorted.
+    ENDLOOP.
+
+    LOOP AT it_contexts INTO DATA(lo_child_context).
+      IF lines( lo_child_context->get_statements( ) ) = 0.
+        CONTINUE ##TODO.
+      ENDIF.
+      INSERT VALUE #(
+        start_line = lo_child_context->get_statement( 1 )->mo_scan_statement->get_first_line_number( )
+        component  = lo_child_context
+      ) INTO TABLE lt_sorted.
+    ENDLOOP.
+
+    ##TODO. " Maybe this works?
+    DATA(lv_last_line) = 1.
+    LOOP AT lt_sorted ASSIGNING FIELD-SYMBOL(<ls_sorted2>).
+      IF sy-tabix = 1.
+        lv_last_line = <ls_sorted2>-start_line + <ls_sorted2>-component->get_line_count( ).
+        CONTINUE.
+      ENDIF.
+
+      IF <ls_sorted2>-start_line > lv_last_line + 1.
+        INSERT VALUE #(
+          start_line = lv_last_line + 1
+          component  = NEW zcl_ppr_ctx_empty( iv_line_amount = <ls_sorted2>-start_line - lv_last_line + 1 )
+        ) INTO TABLE lt_sorted ##TODO. " Parent parameter is missing
+      ENDIF.
+
+      lv_last_line = <ls_sorted2>-start_line + <ls_sorted2>-component->get_line_count( ).
+    ENDLOOP.
+
+    LOOP AT lt_sorted ASSIGNING FIELD-SYMBOL(<ls_sorted>).
+      APPEND <ls_sorted>-component TO rt_ordered_components.
+    ENDLOOP.
   ENDMETHOD.
 ENDCLASS.

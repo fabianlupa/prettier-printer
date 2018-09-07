@@ -43,7 +43,7 @@ CLASS zcl_ppr_formatter IMPLEMENTATION.
 
 
   METHOD format_context.
-    LOOP AT io_context->get_components_in_order( ) INTO DATA(li_component).
+    LOOP AT io_context->get_ordered_components( ) INTO DATA(li_component).
       IF li_component IS INSTANCE OF zcl_ppr_context.
         rv_rebuild_required = format_context( CAST #( li_component ) ).
       ELSEIF li_component IS INSTANCE OF zcl_ppr_statement.

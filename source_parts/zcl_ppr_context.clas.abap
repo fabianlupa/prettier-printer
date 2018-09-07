@@ -26,14 +26,16 @@ CLASS zcl_ppr_context DEFINITION
       set_statements IMPORTING it_statements TYPE gty_statement_tab,
       get_statement IMPORTING iv_index            TYPE i
                     RETURNING VALUE(ro_statement) TYPE REF TO zcl_ppr_statement,
-      get_components_in_order RETURNING VALUE(rt_components) TYPE gty_source_component_tab.
+      set_ordered_components IMPORTING it_ordered_components TYPE gty_source_component_tab,
+      get_ordered_components RETURNING VALUE(rt_ordered_components) TYPE gty_source_component_tab.
     DATA:
       mt_children TYPE gty_context_tab READ-ONLY,
       mo_parent   TYPE REF TO zcl_ppr_context READ-ONLY.
   PROTECTED SECTION.
     DATA:
-      mo_scan_structure TYPE REF TO zcl_ppr_scan_structure,
-      mt_statements     TYPE gty_statement_tab.
+      mo_scan_structure     TYPE REF TO zcl_ppr_scan_structure,
+      mt_statements         TYPE gty_statement_tab,
+      mt_ordered_components TYPE gty_source_component_tab.
   PRIVATE SECTION.
 ENDCLASS.
 
@@ -83,8 +85,12 @@ CLASS zcl_ppr_context IMPLEMENTATION.
     ro_statement = mt_statements[ iv_index ].
   ENDMETHOD.
 
+  METHOD set_ordered_components.
+    mt_ordered_components = it_ordered_components.
+  ENDMETHOD.
+
   METHOD zif_ppr_source_container~get_source_code.
-    LOOP AT get_components_in_order( ) INTO DATA(lo_component).
+    LOOP AT mt_ordered_components INTO DATA(lo_component).
 *      IF lo_component->get_start_line( ) > iv_start_line.
 *        DO iv_start_line - lo_component->get_start_line( ) TIMES.
 *          APPEND INITIAL LINE TO rt_source.
@@ -97,38 +103,13 @@ CLASS zcl_ppr_context IMPLEMENTATION.
     ENDLOOP.
   ENDMETHOD.
 
-  METHOD get_components_in_order.
-    TYPES: BEGIN OF lty_sorted,
-             start_line TYPE i,
-             component  TYPE REF TO zif_ppr_source_container,
-           END OF lty_sorted.
-    DATA: lt_sorted TYPE SORTED TABLE OF lty_sorted WITH UNIQUE KEY start_line.
-
-    LOOP AT mt_statements INTO DATA(lo_statement).
-      INSERT VALUE #(
-        start_line = lo_statement->get_start_line( )
-        component  = lo_statement
-      ) INTO TABLE lt_sorted.
-    ENDLOOP.
-
-    LOOP AT mt_children INTO DATA(lo_child_context).
-      IF lines( lo_child_context->get_statements( ) ) = 0.
-        CONTINUE ##TODO.
-      ENDIF.
-      INSERT VALUE #(
-        start_line = lo_child_context->get_statement( 1 )->get_start_line( )
-        component  = lo_child_context
-      ) INTO TABLE lt_sorted.
-    ENDLOOP.
-
-    LOOP AT lt_sorted ASSIGNING FIELD-SYMBOL(<ls_sorted>).
-      APPEND <ls_sorted>-component TO rt_components.
+  METHOD zif_ppr_source_container~get_line_count.
+    LOOP AT mt_ordered_components INTO DATA(li_component).
+      rv_line_count = rv_line_count + li_component->get_line_count( ).
     ENDLOOP.
   ENDMETHOD.
 
-  METHOD zif_ppr_source_container~get_line_count.
-    LOOP AT get_components_in_order( ) INTO DATA(li_component).
-      rv_line_count = rv_line_count + li_component->get_line_count( ).
-    ENDLOOP.
+  METHOD get_ordered_components.
+    rt_ordered_components = mt_ordered_components.
   ENDMETHOD.
 ENDCLASS.
