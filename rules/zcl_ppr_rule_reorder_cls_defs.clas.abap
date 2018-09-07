@@ -72,7 +72,7 @@ CLASS zcl_ppr_rule_reorder_cls_defs IMPLEMENTATION.
     UNASSIGN <ls_definition>.
 
 *    lo_section->set_statements( lt_ordered_statements ).
-    lo_section->set_ordered_components( lt_ordered_statements ).
+    lo_section->set_children( lt_ordered_statements ).
   ENDMETHOD.
 
   METHOD zif_ppr_formatting_rule~get_settings_group_name.

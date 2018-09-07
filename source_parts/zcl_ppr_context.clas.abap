@@ -9,33 +9,33 @@ CLASS zcl_ppr_context DEFINITION
     ALIASES:
       get_source_code FOR zif_ppr_source_container~get_source_code.
     TYPES:
-      gty_context_tab          TYPE STANDARD TABLE OF REF TO zcl_ppr_context WITH DEFAULT KEY,
-      gty_statement_tab        TYPE STANDARD TABLE OF REF TO zcl_ppr_statement WITH DEFAULT KEY,
-      gty_source_component_tab TYPE STANDARD TABLE OF  REF TO zif_ppr_source_container WITH DEFAULT KEY.
+      gty_child_tab     TYPE STANDARD TABLE OF REF TO zif_ppr_source_container WITH EMPTY KEY
+                             WITH UNIQUE HASHED KEY unique COMPONENTS table_line,
+      gty_statement_tab TYPE STANDARD TABLE OF REF TO zcl_ppr_statement WITH EMPTY KEY
+                             WITH UNIQUE HASHED KEY unique COMPONENTS table_line,
+      gty_context_tab   TYPE STANDARD TABLE OF REF TO zcl_ppr_context WITH EMPTY KEY
+                             WITH UNIQUE HASHED KEY unique COMPONENTS table_line.
     METHODS:
-      constructor IMPORTING it_children       TYPE gty_context_tab OPTIONAL
+      constructor IMPORTING it_children       TYPE gty_child_tab OPTIONAL
                             io_parent         TYPE REF TO zcl_ppr_context OPTIONAL
-                            it_statements     TYPE gty_statement_tab OPTIONAL
                             io_scan_structure TYPE REF TO zcl_ppr_scan_structure OPTIONAL,
-      set_children IMPORTING it_children TYPE gty_context_tab,
+      get_children RETURNING VALUE(rt_children) TYPE gty_child_tab,
+      set_children IMPORTING it_children TYPE gty_child_tab,
       set_parent IMPORTING io_parent TYPE REF TO zcl_ppr_context,
       is_top_level_context RETURNING VALUE(rv_top_level) TYPE abap_bool,
       get_start_statement RETURNING VALUE(ro_statement) TYPE REF TO zcl_ppr_statement,
       get_end_statement RETURNING VALUE(ro_statement) TYPE REF TO zcl_ppr_statement,
       get_statements RETURNING VALUE(rt_statements) TYPE gty_statement_tab,
-      set_statements IMPORTING it_statements TYPE gty_statement_tab,
       get_statement IMPORTING iv_index            TYPE i
-                    RETURNING VALUE(ro_statement) TYPE REF TO zcl_ppr_statement,
-      set_ordered_components IMPORTING it_ordered_components TYPE gty_source_component_tab,
-      get_ordered_components RETURNING VALUE(rt_ordered_components) TYPE gty_source_component_tab.
+                    RETURNING VALUE(ro_statement) TYPE REF TO zcl_ppr_statement.
     DATA:
-      mt_children TYPE gty_context_tab READ-ONLY,
       mo_parent   TYPE REF TO zcl_ppr_context READ-ONLY.
   PROTECTED SECTION.
     DATA:
-      mo_scan_structure     TYPE REF TO zcl_ppr_scan_structure,
-      mt_statements         TYPE gty_statement_tab,
-      mt_ordered_components TYPE gty_source_component_tab.
+      mt_children       TYPE gty_child_tab,
+      mt_statements     TYPE gty_statement_tab,
+      mt_contexts       TYPE gty_context_tab,
+      mo_scan_structure TYPE REF TO zcl_ppr_scan_structure.
   PRIVATE SECTION.
 ENDCLASS.
 
@@ -45,7 +45,6 @@ CLASS zcl_ppr_context IMPLEMENTATION.
   METHOD constructor.
     mt_children = it_children.
     mo_parent = io_parent.
-    mt_statements = it_statements.
     mo_scan_structure = io_scan_structure.
   ENDMETHOD.
 
@@ -65,16 +64,21 @@ CLASS zcl_ppr_context IMPLEMENTATION.
     rt_statements = mt_statements.
   ENDMETHOD.
 
-  METHOD set_statements.
-    mt_statements = it_statements.
-  ENDMETHOD.
-
   METHOD is_top_level_context.
     rv_top_level = boolc( mo_parent IS NOT BOUND ).
   ENDMETHOD.
 
   METHOD set_children.
     mt_children = it_children.
+    CLEAR: mt_statements, mt_contexts.
+
+    LOOP AT mt_children INTO DATA(li_child).
+      IF li_child IS INSTANCE OF zcl_ppr_statement.
+        APPEND CAST #( li_child ) TO mt_statements.
+      ELSEIF li_child IS INSTANCE OF zcl_ppr_context.
+        APPEND CAST #( li_child ) TO mt_contexts.
+      ENDIF.
+    ENDLOOP.
   ENDMETHOD.
 
   METHOD set_parent.
@@ -85,31 +89,19 @@ CLASS zcl_ppr_context IMPLEMENTATION.
     ro_statement = mt_statements[ iv_index ].
   ENDMETHOD.
 
-  METHOD set_ordered_components.
-    mt_ordered_components = it_ordered_components.
-  ENDMETHOD.
-
   METHOD zif_ppr_source_container~get_source_code.
-    LOOP AT mt_ordered_components INTO DATA(lo_component).
-*      IF lo_component->get_start_line( ) > iv_start_line.
-*        DO iv_start_line - lo_component->get_start_line( ) TIMES.
-*          APPEND INITIAL LINE TO rt_source.
-*          iv_start_line = iv_start_line + 1.
-*        ENDDO.
-*      ENDIF.
-      DATA(lt_new_lines) = lo_component->get_source_code( ).
-      APPEND LINES OF lt_new_lines TO rt_source.
-*      iv_start_line = iv_start_line + lines(  lt_new_lines ).
+    LOOP AT mt_children INTO DATA(li_child).
+      APPEND LINES OF li_child->get_source_code( ) TO rt_source.
     ENDLOOP.
   ENDMETHOD.
 
   METHOD zif_ppr_source_container~get_line_count.
-    LOOP AT mt_ordered_components INTO DATA(li_component).
-      rv_line_count = rv_line_count + li_component->get_line_count( ).
+    LOOP AT mt_children INTO DATA(li_child).
+      rv_line_count = rv_line_count + li_child->get_line_count( ).
     ENDLOOP.
   ENDMETHOD.
 
-  METHOD get_ordered_components.
-    rt_ordered_components = mt_ordered_components.
+  METHOD get_children.
+    rt_children = mt_children.
   ENDMETHOD.
 ENDCLASS.

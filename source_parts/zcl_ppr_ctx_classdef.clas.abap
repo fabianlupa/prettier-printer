@@ -25,13 +25,13 @@ ENDCLASS.
 
 CLASS zcl_ppr_ctx_classdef IMPLEMENTATION.
   METHOD get_section_by_type.
-    LOOP AT mt_children INTO DATA(lo_child).
-      IF to_upper( lo_child->get_start_statement( )->get_statement_text( ) ) = SWITCH #( iv_type
+    LOOP AT mt_contexts INTO DATA(lo_child_context).
+      IF to_upper( lo_child_context->get_start_statement( )->get_statement_text( ) ) = SWITCH #( iv_type
            WHEN gc_section_types-public    THEN 'PUBLIC SECTION'
            WHEN gc_section_types-protected THEN 'PROTECTED SECTION'
            WHEN gc_section_types-private   THEN 'PRIVATE SECTION'
          ).
-        ro_section = lo_child.
+        ro_section = lo_child_context.
         EXIT.
       ENDIF.
     ENDLOOP.

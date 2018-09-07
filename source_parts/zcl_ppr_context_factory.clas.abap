@@ -15,13 +15,13 @@ CLASS zcl_ppr_context_factory DEFINITION
     CLASS-METHODS:
       build_contexts IMPORTING it_structures      TYPE zcl_ppr_scan_result=>gty_structure_object_tab
                                io_parent          TYPE REF TO zcl_ppr_context OPTIONAL
-                     RETURNING VALUE(rt_contexts) TYPE gty_context_tab,
+                     RETURNING VALUE(rt_contexts) TYPE zcl_ppr_context=>gty_context_tab,
       get_relevant_statements IMPORTING io_structure         TYPE REF TO zcl_ppr_scan_structure
                                         it_structures        TYPE zcl_ppr_scan_result=>gty_structure_object_tab
                               RETURNING VALUE(rt_statements) TYPE zcl_ppr_scan_result=>gty_statement_object_tab,
-      build_ordered_component_list IMPORTING it_contexts                  TYPE zcl_ppr_context=>gty_context_tab
-                                             it_statements                TYPE zcl_ppr_context=>gty_statement_tab
-                                   RETURNING VALUE(rt_ordered_components) TYPE zcl_ppr_context=>gty_source_component_tab.
+      build_ordered_child_list IMPORTING it_contexts                  TYPE zcl_ppr_context=>gty_context_tab
+                                         it_statements                TYPE zcl_ppr_context=>gty_statement_tab
+                               RETURNING VALUE(rt_ordered_components) TYPE zcl_ppr_context=>gty_child_tab.
 ENDCLASS.
 
 
@@ -42,14 +42,14 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
     IF lines( lt_contexts ) = 1.
       ro_context = lt_contexts[ 1 ].
     ELSEIF lines(  lt_contexts ) > 1.
-      ro_context = NEW #( it_children = lt_contexts ).
+      ro_context = NEW #( it_children = VALUE #( FOR line IN lt_contexts ( line ) ) ).
     ELSE.
       ASSERT 1 = 2 ##TODO.
     ENDIF.
   ENDMETHOD.
 
   METHOD build_contexts.
-    DATA: lt_statements     TYPE STANDARD TABLE OF REF TO zcl_ppr_statement,
+    DATA: lt_statements     TYPE zcl_ppr_context=>gty_statement_tab,
           lo_new_context    TYPE REF TO zcl_ppr_context,
           lt_sub_structures TYPE STANDARD TABLE OF REF TO zcl_ppr_scan_structure.
 
@@ -69,15 +69,13 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
             DATA(lt_tokens) = lo_structure->get_statement( 1 )->get_tokens( ).
             IF lines( lt_tokens ) >= 3 AND to_upper( lt_tokens[ 3 ]->get_token_text( ) ) = 'IMPLEMENTATION'.
               lo_new_context = NEW zcl_ppr_ctx_classimp(
-                io_parent     = io_parent
-                it_statements = lt_statements
+                io_parent         = io_parent
                 io_scan_structure = lo_structure
               ).
               lt_sub_structures = lo_structure->get_sub_structures( ).
             ELSE.
               lo_new_context = NEW zcl_ppr_ctx_classdef(
-                io_parent     = io_parent
-                it_statements = lt_statements
+                io_parent         = io_parent
                 io_scan_structure = lo_structure
               ).
               lt_sub_structures = lo_structure->get_sub_structures( ).
@@ -91,10 +89,8 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
 *          ENDLOOP.
           IF lo_structure->get_statement( 1 )->get_token( 1 )->get_token_text( ) = 'IF'.
             lo_new_context = NEW zcl_ppr_ctx_condition(
-              io_parent = io_parent
-              it_statements = lt_statements
+              io_parent         = io_parent
               io_scan_structure = lo_structure
-*              it_scan_structures_alt = lo_structure->get_sub_structures( )
             ).
           ELSE.
             ASSERT 1 = 2 ##TODO.
@@ -104,7 +100,6 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
           " These are parts of an IF statement block, including the ELSEIF conditions
           lo_new_context = NEW #(
             io_parent         = io_parent
-            it_statements     = lt_statements
             io_scan_structure = lo_structure
           ).
           lt_sub_structures = lo_structure->get_sub_structures( ).
@@ -114,7 +109,6 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
         " Fallback solution as no specific context class has been determined
         lo_new_context = NEW #(
           io_parent         = io_parent
-          it_statements     = lt_statements
           io_scan_structure = lo_structure
         ).
         lt_sub_structures = lo_structure->get_sub_structures( ).
@@ -124,8 +118,7 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
         it_structures = lt_sub_structures
         io_parent     = lo_new_context
       ).
-      lo_new_context->set_children( lt_sub_contexts ).
-      lo_new_context->set_ordered_components( build_ordered_component_list(
+      lo_new_context->set_children( build_ordered_child_list(
         it_contexts   = lt_sub_contexts
         it_statements = lt_statements
       ) ).
@@ -165,7 +158,7 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
     rt_statements = lt_statements.
   ENDMETHOD.
 
-  METHOD build_ordered_component_list.
+  METHOD build_ordered_child_list.
     TYPES: BEGIN OF lty_sorted,
              start_line TYPE i,
              component  TYPE REF TO zif_ppr_source_container,
