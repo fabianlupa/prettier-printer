@@ -21,7 +21,10 @@ CLASS zcl_ppr_context_factory DEFINITION
                               RETURNING VALUE(rt_statements) TYPE zcl_ppr_scan_result=>gty_statement_object_tab,
       build_ordered_child_list IMPORTING it_contexts                  TYPE zcl_ppr_context=>gty_context_tab
                                          it_statements                TYPE zcl_ppr_context=>gty_statement_tab
-                               RETURNING VALUE(rt_ordered_components) TYPE zcl_ppr_context=>gty_child_tab.
+                               RETURNING VALUE(rt_ordered_components) TYPE zcl_ppr_context=>gty_child_tab,
+      insert_empty_line_contexts IMPORTING io_context                     TYPE REF TO zcl_ppr_context
+                                           iv_last_line_number            TYPE i OPTIONAL
+                                 RETURNING VALUE(rv_new_last_line_number) TYPE i.
 ENDCLASS.
 
 
@@ -46,6 +49,8 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
     ELSE.
       ASSERT 1 = 2 ##TODO.
     ENDIF.
+
+    insert_empty_line_contexts( ro_context ).
   ENDMETHOD.
 
   METHOD build_contexts.
@@ -183,26 +188,59 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
       ) INTO TABLE lt_sorted.
     ENDLOOP.
 
-    ##TODO. " Maybe this works?
-    DATA(lv_last_line) = 1.
-    LOOP AT lt_sorted ASSIGNING FIELD-SYMBOL(<ls_sorted2>).
-      IF sy-tabix = 1.
-        lv_last_line = <ls_sorted2>-start_line + <ls_sorted2>-component->get_line_count( ).
-        CONTINUE.
-      ENDIF.
-
-      IF <ls_sorted2>-start_line > lv_last_line + 1.
-        INSERT VALUE #(
-          start_line = lv_last_line + 1
-          component  = NEW zcl_ppr_ctx_empty( iv_line_amount = <ls_sorted2>-start_line - lv_last_line + 1 )
-        ) INTO TABLE lt_sorted ##TODO. " Parent parameter is missing
-      ENDIF.
-
-      lv_last_line = <ls_sorted2>-start_line + <ls_sorted2>-component->get_line_count( ).
-    ENDLOOP.
-
     LOOP AT lt_sorted ASSIGNING FIELD-SYMBOL(<ls_sorted>).
       APPEND <ls_sorted>-component TO rt_ordered_components.
     ENDLOOP.
+  ENDMETHOD.
+
+  METHOD insert_empty_line_contexts.
+    TYPES: BEGIN OF lty_new_context,
+             index   TYPE i,
+             context TYPE REF TO zcl_ppr_context,
+           END OF lty_new_context.
+    DATA: lv_next_line_number TYPE i,
+          lt_new_contexts     TYPE STANDARD TABLE OF lty_new_context WITH EMPTY KEY.
+
+    " Empty lines in the source code have no representation in the context hierarchy up to this point.
+    " The only indication is the start- and end line number of the statements scan result object.
+    " -> This method inserts 'dummy' contexts that represent empty lines into the hierarchy.
+
+    DATA(lv_last_line_number) = iv_last_line_number.
+    DATA(lt_children) = io_context->get_children( ).
+
+    LOOP AT lt_children INTO DATA(li_child).
+      DATA(lv_index) = sy-tabix.
+
+      CASE TYPE OF li_child.
+        WHEN TYPE zcl_ppr_statement INTO DATA(lo_statement).
+          lv_next_line_number = lo_statement->mo_scan_statement->get_first_line_number( ).
+
+          IF lv_next_line_number - 1 > lv_last_line_number.
+            INSERT VALUE #(
+              index = lv_index
+              context = NEW zcl_ppr_ctx_empty(
+                          io_parent      = io_context
+                          iv_line_amount = lv_next_line_number - lv_last_line_number - 1
+                        )
+            ) INTO TABLE lt_new_contexts.
+          ENDIF.
+
+          lv_last_line_number = lo_statement->mo_scan_statement->get_last_line_number( ).
+
+        WHEN TYPE zcl_ppr_context INTO DATA(lo_context).
+          lv_last_line_number = insert_empty_line_contexts(
+            io_context          = lo_context
+            iv_last_line_number = lv_last_line_number
+          ).
+      ENDCASE.
+    ENDLOOP.
+
+    SORT lt_new_contexts BY index DESCENDING.
+    LOOP AT lt_new_contexts ASSIGNING FIELD-SYMBOL(<ls_new_context>).
+      INSERT <ls_new_context>-context INTO lt_children INDEX <ls_new_context>-index.
+    ENDLOOP.
+    io_context->set_children( lt_children ).
+
+    rv_new_last_line_number = lv_last_line_number.
   ENDMETHOD.
 ENDCLASS.
