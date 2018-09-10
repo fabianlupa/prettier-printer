@@ -6,49 +6,83 @@ CLASS zcl_ppr_formatter DEFINITION
 
   PUBLIC SECTION.
     METHODS:
+      constructor,
       format_source IMPORTING it_source           TYPE stringtab
+                              io_configuration    TYPE REF TO zcl_ppr_configuration
                               iv_run_standard_pp  TYPE abap_bool DEFAULT abap_true
                     RETURNING VALUE(rt_formatted) TYPE stringtab,
-      format_object IMPORTING iv_object_type TYPE trobjtype
-                              iv_object_name TYPE sobj_name.
+      format_object IMPORTING iv_object_type   TYPE trobjtype
+                              iv_object_name   TYPE sobj_name
+                              io_configuration TYPE REF TO zcl_ppr_configuration
+                    RAISING   zcx_ppr_source_read_error.
   PROTECTED SECTION.
   PRIVATE SECTION.
-    TYPES:
-      BEGIN OF gty_processor,
-        order     TYPE i,
-        processor TYPE REF TO zcl_ppr_processor_base,
-      END OF gty_processor.
-    CLASS-METHODS:
-      scan_source IMPORTING it_source     TYPE stringtab
-                  EXPORTING et_tokens     TYPE stokesx_tab
-                            et_statements TYPE sstmnt_tab
-                            et_structures TYPE sstruc_tab.
     METHODS:
       initialize_processing_session,
-      split_source_into_processors,
-      get_source_from_to IMPORTING iv_from          TYPE i
-                                   iv_to            TYPE i
-                         RETURNING VALUE(rt_source) TYPE stringtab,
-      build_source_hierarchy.
+      format_context IMPORTING io_context                 TYPE REF TO zcl_ppr_context
+                     RETURNING VALUE(rv_rebuild_required) TYPE abap_bool,
+      format_statement IMPORTING io_statement               TYPE REF TO zcl_ppr_statement
+                       RETURNING VALUE(rv_rebuild_required) TYPE abap_bool.
     DATA:
-      mt_tokens          TYPE stokesx_tab,
-      mt_statements      TYPE sstmnt_tab,
-      mt_structures      TYPE sstruc_tab,
-      mt_original_source TYPE stringtab,
-      mt_processors      TYPE SORTED TABLE OF gty_processor WITH UNIQUE KEY order.
+      mi_source_provider TYPE REF TO zif_ppr_source_provider,
+      mo_scanner         TYPE REF TO zcl_ppr_oo_scanner,
+      mo_scan_result     TYPE REF TO zcl_ppr_scan_result,
+      mo_context         TYPE REF TO zcl_ppr_context,
+      mt_original_source TYPE stringtab.
 ENDCLASS.
 
 
 
 CLASS zcl_ppr_formatter IMPLEMENTATION.
-  METHOD format_object.
 
+
+  METHOD constructor.
+    mi_source_provider = NEW zcl_ppr_source_provider( ).
+    mo_scanner = NEW #( ).
   ENDMETHOD.
+
+
+  METHOD format_context.
+    LOOP AT io_context->get_children( ) INTO DATA(li_child).
+      IF li_child IS INSTANCE OF zcl_ppr_context.
+        rv_rebuild_required = format_context( CAST #( li_child ) ).
+      ELSEIF li_child IS INSTANCE OF zcl_ppr_statement.
+        rv_rebuild_required = format_statement( CAST #( li_child ) ).
+      ENDIF.
+
+      IF rv_rebuild_required = abap_true.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+
+    LOOP AT zcl_ppr_rule_factory=>get_rules_for_context( io_context ) INTO DATA(li_rule).
+      rv_rebuild_required = li_rule->apply_rule( ig_settings = '' ir_code = VALUE #( ) io_target = io_context ).
+      IF rv_rebuild_required = abap_true.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
+  ENDMETHOD.
+
+
+  METHOD format_object.
+    DATA(lt_source) = mi_source_provider->get_source( iv_object_type = iv_object_type
+                                                      iv_object_name = iv_object_name
+                                                      iv_state       = 'A' ).
+    DATA(lt_formatted) = format_source( it_source        = lt_source
+                                        io_configuration = io_configuration ).
+
+    LOOP AT lt_formatted ASSIGNING FIELD-SYMBOL(<lv_line>).
+      WRITE: / <lv_line>. " TODO remove this
+    ENDLOOP.
+    ##TODO. " Save
+  ENDMETHOD.
+
 
   METHOD format_source.
     initialize_processing_session( ).
 
     IF iv_run_standard_pp = abap_true.
+      ##TODO. " Use settings parameter
       CALL FUNCTION 'PRETTY_PRINTER'
         EXPORTING
           inctoo             = abap_false
@@ -69,113 +103,40 @@ CLASS zcl_ppr_formatter IMPLEMENTATION.
       mt_original_source = it_source.
     ENDIF.
 
-    " Assume normal pretty printer has been executed, this means the following should
-    " already be as the user expects it:
-    " - Intendation
-    " - Upper/Lower Case Conversion
+    mo_scan_result = mo_scanner->scan_source( mt_original_source ).
+    mo_context = zcl_ppr_context_factory=>get_context_hierarchy_by_scan( mo_scan_result ).
 
-    scan_source(
-      EXPORTING
-        it_source     = mt_original_source
-      IMPORTING
-        et_tokens     = mt_tokens
-        et_statements = mt_statements
-        et_structures = mt_structures
-    ).
+    DATA(lv_done) = abap_false.
+    WHILE lv_done = abap_false.
+      IF sy-index > 999.
+        ASSERT 1 = 2. " o0
+      ENDIF.
+      lv_done = boolc( NOT format_context( mo_context ) ).
+      IF lv_done = abap_false.
+        mo_scan_result = mo_scanner->scan_source( mt_original_source ).
+        mo_context = zcl_ppr_context_factory=>get_context_hierarchy_by_scan( mo_scan_result ).
+      ENDIF.
+    ENDWHILE.
 
-    build_source_hierarchy( ).
+    rt_formatted = mo_context->get_source_code( ).
 
-    split_source_into_processors( ).
+*    rt_formatted = mo_context->format( io_configuration ).
+  ENDMETHOD.
 
-    LOOP AT mt_processors ASSIGNING FIELD-SYMBOL(<ls_processor>).
-      <ls_processor>-processor->process( ).
-      APPEND LINES OF <ls_processor>-processor->get_result( ) TO rt_formatted.
+
+  METHOD format_statement.
+    LOOP AT zcl_ppr_rule_factory=>get_rules_for_statement( io_statement ) INTO DATA(lo_rule).
+      rv_rebuild_required = lo_rule->apply_rule( ig_settings = '' ir_code = VALUE #( ) io_target = io_statement ).
+      IF rv_rebuild_required = abap_true.
+        RETURN.
+      ENDIF.
     ENDLOOP.
   ENDMETHOD.
+
 
   METHOD initialize_processing_session.
-    CLEAR: mt_statements,
-           mt_tokens,
-           mt_structures,
-           mt_processors.
-  ENDMETHOD.
-
-  METHOD split_source_into_processors.
-    DATA(lv_statement_count) = lines( mt_statements ).
-    DATA(lv_counter) = 1.
-    WHILE lv_counter < lv_statement_count.
-      TRY.
-          DATA(lr_statement) = REF #( mt_statements[ lv_counter ] ).
-          " Find out structure information for the token in the statement
-          DATA(lr_structure) = REF #( mt_structures[ mt_tokens[ lr_statement->from ]-row ] ).
-          CASE lr_structure->stmnt_type.
-            WHEN scan_struc_stmnt_type-class_definition.
-              " Give over processing for the whole class definition part
-              INSERT VALUE #(
-                order = lines( mt_processors ) + 1
-                processor = NEW zcl_ppr_classdef_processor(
-                              get_source_from_to( iv_from = lr_statement->from
-                                                  iv_to   = lr_statement->to )
-                            )
-              ) INTO TABLE mt_processors.
-              lv_counter = lr_statement->to + 1.
-              CONTINUE.
-*            WHEN scan_struc_stmnt_type-method.
-*              BREAK-POINT.
-            WHEN OTHERS.
-              " Unsupported, leave as is
-              INSERT VALUE #(
-                order = lines( mt_processors ) + 1
-                processor = NEW zcl_ppr_dummy_processor(
-                              get_source_from_to( iv_from = lr_statement->from
-                                                  iv_to   = lr_statement->to )
-                            )
-              ) INTO TABLE mt_processors.
-              lv_counter = lr_statement->to + 1.
-              CONTINUE.
-*              BREAK-POINT.
-          ENDCASE.
-        CATCH cx_sy_itab_line_not_found.
-          BREAK-POINT.
-      ENDTRY.
-
-      ADD 1 TO lv_counter.
-    ENDWHILE.
-  ENDMETHOD.
-
-  METHOD build_source_hierarchy.
-    DATA(lv_statement_count) = lines( mt_statements ).
-    DATA(lv_counter) = 1.
-
-    WHILE lv_counter <= lv_statement_count.
-*      DATA(lr_statement) = REF #( mt_statements[ lv_counter ] ).
-*      DATA(lr_structure) = REF #( mt_structures[ mt_tokens[ lr_statement->from ]-row ] ).
-*      DATA(lt_tokens) = get_tokens_for_statement( lr_statement->* ).
-*
-*      zcl_ppr_statement_factory=>
-*
-*      ADD 1 TO lv_counter.
-    ENDWHILE.
-  ENDMETHOD.
-
-  METHOD get_source_from_to.
-    LOOP AT mt_original_source FROM iv_from TO iv_to ASSIGNING FIELD-SYMBOL(<lv_source>).
-      APPEND <lv_source> TO rt_source.
-    ENDLOOP.
-  ENDMETHOD.
-
-  METHOD scan_source.
-    SCAN ABAP-SOURCE it_source
-      TOKENS INTO et_tokens
-      STATEMENTS INTO et_statements
-      STRUCTURES INTO et_structures
-      WITH ANALYSIS
-      WITH COMMENTS
-      WITH BLOCKS
-      WITH DECLARATIONS
-      WITH PRAGMAS '*'
-      PRESERVING IDENTIFIER ESCAPING
-      WITHOUT TRMAC.
-    BREAK-POINT.
+    CLEAR: mt_original_source.
+    FREE: mo_scan_result,
+          mo_context.
   ENDMETHOD.
 ENDCLASS.

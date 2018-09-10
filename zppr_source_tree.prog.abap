@@ -1,7 +1,7 @@
 REPORT zppr_source_tree.
 
 PARAMETERS: p_objt   TYPE trobjtype OBLIGATORY DEFAULT 'PROG',
-            p_objn   TYPE sobj_name OBLIGATORY DEFAULT 'ZPPR_SOURCE_TREE',
+            p_objn   TYPE sobj_name OBLIGATORY DEFAULT 'ZPPR_TEST',
             p_active TYPE abap_bool RADIOBUTTON GROUP r1 DEFAULT 'X',
             p_inacti TYPE abap_bool RADIOBUTTON GROUP r1.
 
@@ -138,7 +138,7 @@ CLASS lcl_main IMPLEMENTATION.
                                       iv_append_tokens     = abap_true ).
         ENDLOOP.
 
-        lo_root->expand( ).
+        lo_root->expand( level = 2 ).
         mo_tree->get_columns( )->set_optimize( ).
         mo_tree->display( ).
 

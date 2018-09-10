@@ -43,8 +43,8 @@ CLASS ltcl_class_formatter IMPLEMENTATION.
       ( |ENDCLASS.| )
     ).
 
-    DATA(lt_formatted) = mo_cut->format_source( lt_code ).
-    cl_abap_unit_assert=>assert_equals( exp = lt_expected_code act = lt_formatted ).
+*    DATA(lt_formatted) = mo_cut->format_source( lt_code ).
+*    cl_abap_unit_assert=>assert_equals( exp = lt_expected_code act = lt_formatted ).
   ENDMETHOD.
 
 *  METHOD complex_definition.
@@ -53,36 +53,5 @@ CLASS ltcl_class_formatter IMPLEMENTATION.
 
   METHOD teardown.
     FREE mo_cut.
-  ENDMETHOD.
-ENDCLASS.
-
-CLASS ltcl_source_scanner DEFINITION DEFERRED.
-CLASS zcl_ppr_formatter DEFINITION LOCAL FRIENDS ltcl_source_scanner.
-
-CLASS ltcl_source_scanner DEFINITION
-  FOR TESTING
-  RISK LEVEL HARMLESS
-  DURATION SHORT
-  CREATE PUBLIC.
-
-  PUBLIC SECTION.
-    METHODS:
-      scan FOR TESTING.
-  PROTECTED SECTION.
-  PRIVATE SECTION.
-ENDCLASS.
-
-CLASS ltcl_source_scanner IMPLEMENTATION.
-  METHOD scan.
-    DATA(lt_code) = VALUE stringtab(
-      ( |CLASS lcl_test DEFINITION.| )
-      ( |  PUBLIC SECTION.| )
-      ( |    METHODS meth1.| )
-      ( |    METHODS meth2.| )
-      ( |  PROTECTED SECTION.| )
-      ( |  PRIVATE SECTION.| )
-      ( |ENDCLASS.| )
-    ).
-    zcl_ppr_formatter=>scan_source( lt_code ).
   ENDMETHOD.
 ENDCLASS.

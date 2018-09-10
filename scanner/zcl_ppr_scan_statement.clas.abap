@@ -13,6 +13,8 @@ CLASS zcl_ppr_scan_statement DEFINITION
                             iv_id          TYPE i
                             io_scan_result TYPE REF TO zcl_ppr_scan_result,
       get_tokens RETURNING VALUE(rt_tokens) TYPE zcl_ppr_scan_result=>gty_token_object_tab,
+      get_token IMPORTING iv_index        TYPE i
+                RETURNING VALUE(ro_token) TYPE REF TO zcl_ppr_scan_token,
       get_structure RETURNING VALUE(ro_structure) TYPE REF TO zcl_ppr_scan_structure,
       get_description REDEFINITION,
       get_statement_type RETURNING VALUE(rv_type) TYPE stmnt_type,
@@ -22,7 +24,8 @@ CLASS zcl_ppr_scan_statement DEFINITION
       get_last_line_number RETURNING VALUE(rv_line) TYPE i,
       get_source RETURNING VALUE(rt_source) TYPE stringtab,
       is_part_of_chained_statement RETURNING VALUE(rv_is_chained) TYPE abap_bool,
-      is_statement_first_in_line RETURNING VALUE(rv_first) TYPE abap_bool.
+      is_statement_first_in_line RETURNING VALUE(rv_first) TYPE abap_bool,
+      get_dot_position RETURNING VALUE(rv_position) TYPE i.
     DATA:
       ms_statement TYPE sstmnt READ-ONLY.
   PROTECTED SECTION.
@@ -47,6 +50,11 @@ CLASS zcl_ppr_scan_statement IMPLEMENTATION.
     DO lv_to - lv_from + 1 TIMES.
       APPEND mo_scan_result->get_token_by_id( lv_from + sy-index - 1 ) TO rt_tokens.
     ENDDO.
+  ENDMETHOD.
+
+  METHOD get_token.
+    DATA(lt_tokens) = get_tokens( ).
+    ro_token = lt_tokens[ iv_index ].
   ENDMETHOD.
 
   METHOD get_structure.
@@ -136,5 +144,9 @@ CLASS zcl_ppr_scan_statement IMPLEMENTATION.
       EXIT.
     ENDLOOP.
     ASSERT sy-subrc = 0.
+  ENDMETHOD.
+
+  METHOD get_dot_position.
+    rv_position = ms_statement-tcol.
   ENDMETHOD.
 ENDCLASS.
