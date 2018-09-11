@@ -25,7 +25,11 @@ CLASS zcl_ppr_scan_statement DEFINITION
       get_source RETURNING VALUE(rt_source) TYPE stringtab,
       is_part_of_chained_statement RETURNING VALUE(rv_is_chained) TYPE abap_bool,
       is_statement_first_in_line RETURNING VALUE(rv_first) TYPE abap_bool,
-      get_dot_position RETURNING VALUE(rv_position) TYPE i.
+      get_dot_position RETURNING VALUE(rv_position) TYPE i,
+      is_end_character_dot RETURNING VALUE(rv_is_dot) TYPE abap_bool,
+      get_colon_line_number RETURNING VALUE(rv_colon_line_number) TYPE i,
+      get_colon_column RETURNING VALUE(rv_colon_column) TYPE i,
+      get_token_count_before_colon RETURNING VALUE(rv_count) TYPE i.
     DATA:
       ms_statement TYPE sstmnt READ-ONLY.
   PROTECTED SECTION.
@@ -117,21 +121,47 @@ CLASS zcl_ppr_scan_statement IMPLEMENTATION.
   ENDMETHOD.
 
   METHOD get_source.
-*    DATA(lt_tokens) = get_tokens( ).
+    DATA: lv_is_first_statement TYPE abap_bool,
+          lv_line               TYPE string.
+    FIELD-SYMBOLS: <lv_source> TYPE string.
 
-    ##TODO. " This will give wrong results with chained statements and multiple statements per line
-    LOOP AT mo_scan_result->mt_source FROM get_first_line_number( ) TO get_last_line_number( )
-                                      INTO DATA(lv_source_line).
-*      AT FIRST.
-*        lt_tokens[ 1 ]->
-*      ENDAT.
-*
-*      AT LAST.
-*
-*      ENDAT.
+    IF is_part_of_chained_statement( ) = abap_false.
+      ##TODO. " This will give wrong results with multiple statements per line
+      LOOP AT mo_scan_result->mt_source FROM get_first_line_number( ) TO get_last_line_number( )
+                                        ASSIGNING <lv_source>.
+        APPEND <lv_source> TO rt_source.
+      ENDLOOP.
+    ELSE.
+      " Chained statement, mo_scan_result->mt_source might contain the other parts of the chain. However, tokens
+      " cannot be used directly as this would remove all comments and maybe pragmas.
+      " -> Parse mt_source
 
-      APPEND lv_source_line TO rt_source.
-    ENDLOOP.
+      IF ms_statement-number > 1.
+        lv_is_first_statement = abap_true.
+      ELSE.
+        DATA(lo_previous_statement) = mo_scan_result->get_statement_by_id( ms_statement-number - 1 ).
+        lv_is_first_statement = boolc( lo_previous_statement->is_part_of_chained_statement( ) AND NOT
+          lo_previous_statement->is_end_character_dot( ) ).
+      ENDIF.
+
+      IF lv_is_first_statement = abap_true.
+        LOOP AT mo_scan_result->mt_source FROM get_first_line_number( ) TO get_last_line_number( )
+                                          ASSIGNING <lv_source>.
+          IF sy-tabix = 1 AND <lv_source> CP '*:*' ##TODO. "ms_statement-colonrow
+            lv_line = condense( <lv_source>+ms_statement-coloncol ).
+          ELSE.
+            lv_line = condense( <lv_source> ).
+          ENDIF.
+          APPEND lv_line TO rt_source.
+        ENDLOOP.
+      ELSE.
+        DATA(lo_first_token) = get_token( ms_statement-prefixlen + 1 ).
+        LOOP AT mo_scan_result->mt_source FROM lo_first_token->get_row( ) TO get_last_line_number( )
+                                          ASSIGNING <lv_source>.
+          APPEND <lv_source> TO rt_source.
+        ENDLOOP.
+      ENDIF.
+    ENDIF.
   ENDMETHOD.
 
   METHOD is_part_of_chained_statement.
@@ -148,5 +178,21 @@ CLASS zcl_ppr_scan_statement IMPLEMENTATION.
 
   METHOD get_dot_position.
     rv_position = ms_statement-tcol.
+  ENDMETHOD.
+
+  METHOD get_colon_line_number.
+    rv_colon_line_number = ms_statement-colonrow.
+  ENDMETHOD.
+
+  METHOD get_colon_column.
+    rv_colon_column = ms_statement-coloncol.
+  ENDMETHOD.
+
+  METHOD get_token_count_before_colon.
+    rv_count = ms_statement-prefixlen.
+  ENDMETHOD.
+
+  METHOD is_end_character_dot.
+    rv_is_dot = boolc( ms_statement-terminator = '.' ).
   ENDMETHOD.
 ENDCLASS.

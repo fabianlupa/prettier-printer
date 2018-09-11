@@ -192,6 +192,9 @@ CLASS lcl_main IMPLEMENTATION.
         li_output->write_data( lo_statement->ms_statement
           )->write_data( value = lo_statement->is_statement_first_in_line( ) name = 'First in line'
           )->write_data( value = lo_statement->is_part_of_chained_statement( ) name = 'Part of chain'
+          )->write_data( value = lo_statement->get_colon_column( ) name = 'Colon column'
+          )->write_data( value = lo_statement->get_colon_line_number( ) name = 'Colon line number'
+          )->write_data( value = lo_statement->is_end_character_dot( ) name = 'End character is dot'
           )->write_data( value = lo_statement->get_first_line_number( ) name = 'First line'
           )->write_data( value = lo_statement->get_last_line_number( ) name = 'Last line'
           )->write_data( value = lo_statement->get_source( ) name = 'Source (might include other statements)'

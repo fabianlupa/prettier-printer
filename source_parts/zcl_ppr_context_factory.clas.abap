@@ -56,14 +56,29 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
   METHOD build_contexts.
     DATA: lt_statements     TYPE zcl_ppr_context=>gty_statement_tab,
           lo_new_context    TYPE REF TO zcl_ppr_context,
-          lt_sub_structures TYPE STANDARD TABLE OF REF TO zcl_ppr_scan_structure.
+          lt_sub_structures TYPE STANDARD TABLE OF REF TO zcl_ppr_scan_structure,
+          lt_chain_parts    TYPE STANDARD TABLE OF REF TO zcl_ppr_scan_statement.
 
     LOOP AT it_structures INTO DATA(lo_structure).
       LOOP AT get_relevant_statements( io_structure  = lo_structure
                                        it_structures = lo_structure->get_all_sub_structures( ) )
            INTO DATA(lo_scan_statement).
-        APPEND zcl_ppr_statement_factory=>get_statement_from_scan( lo_scan_statement ) TO lt_statements.
+        IF lo_scan_statement->is_part_of_chained_statement( ) = abap_false.
+          IF lines( lt_chain_parts ) > 0.
+            APPEND zcl_ppr_statement_factory=>get_chained_stmnt_from_scan( lt_chain_parts ) TO lt_statements.
+            CLEAR lt_chain_parts.
+          ENDIF.
+          APPEND zcl_ppr_statement_factory=>get_statement_from_scan( lo_scan_statement ) TO lt_statements.
+        ELSE.
+          APPEND lo_scan_statement TO lt_chain_parts.
+        ENDIF.
       ENDLOOP.
+
+      IF lines( lt_chain_parts ) > 0.
+        APPEND zcl_ppr_statement_factory=>get_chained_stmnt_from_scan( lt_chain_parts ) TO lt_statements.
+        CLEAR lt_chain_parts.
+      ENDIF.
+      ##TODO. " Remove duplication
 
       CASE lo_structure->get_structure_type( ).
         WHEN zcl_ppr_constants=>gc_scan_struc_types-class.
@@ -166,26 +181,58 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
   METHOD build_ordered_child_list.
     TYPES: BEGIN OF lty_sorted,
              start_line TYPE i,
+             sub_index  TYPE i,
              component  TYPE REF TO zif_ppr_source_container,
            END OF lty_sorted.
-    DATA: lt_sorted TYPE SORTED TABLE OF lty_sorted WITH UNIQUE KEY start_line.
+    DATA: lt_sorted    TYPE SORTED TABLE OF lty_sorted WITH UNIQUE KEY start_line sub_index,
+          lv_sub_index TYPE i.
 
     LOOP AT it_statements INTO DATA(lo_statement).
       ##TODO. " This insert fails with chained statements
-      INSERT VALUE #(
-        start_line = lo_statement->mo_scan_statement->get_first_line_number( )
-        component  = lo_statement
-      ) INTO TABLE lt_sorted.
+      IF lo_statement->mo_scan_statement IS BOUND AND
+         lo_statement->mo_scan_statement->is_part_of_chained_statement( ) = abap_false.
+        INSERT VALUE #(
+          start_line = lo_statement->mo_scan_statement->get_first_line_number( )
+          sub_index  = 0
+          component  = lo_statement
+        ) INTO TABLE lt_sorted.
+        lv_sub_index = 0.
+      ELSEIF lo_statement->mo_scan_statement IS BOUND AND
+             lo_statement->mo_scan_statement->is_part_of_chained_statement( ) = abap_true.
+        INSERT VALUE #(
+          start_line = lo_statement->mo_scan_statement->get_first_line_number( )
+          sub_index  = lv_sub_index
+          component  = lo_statement
+        ) INTO TABLE lt_sorted.
+        lv_sub_index = lv_sub_index + 1.
+      ELSEIF lo_statement IS INSTANCE OF zcl_ppr_chained_statement.
+        DATA(lo_chained_statement) = CAST zcl_ppr_chained_statement( lo_statement ).
+        INSERT VALUE #(
+          start_line = lo_chained_statement->get_chain_element( 1 )->mo_scan_statement->get_first_line_number( )
+          sub_index  = 0
+          component  = lo_statement
+        ) INTO TABLE lt_sorted.
+        lv_sub_index = 0.
+      ENDIF.
     ENDLOOP.
 
     LOOP AT it_contexts INTO DATA(lo_child_context).
       IF lines( lo_child_context->get_statements( ) ) = 0.
         CONTINUE ##TODO.
       ENDIF.
-      INSERT VALUE #(
-        start_line = lo_child_context->get_statement( 1 )->mo_scan_statement->get_first_line_number( )
-        component  = lo_child_context
-      ) INTO TABLE lt_sorted.
+      DATA(lo_child_statement) = lo_child_context->get_statement( 1 ).
+      IF lo_child_statement IS INSTANCE OF zcl_ppr_chained_statement.
+        INSERT VALUE #(
+          start_line = CAST zcl_ppr_chained_statement( lo_child_statement )->get_chain_element( 1
+                              )->mo_scan_statement->get_first_line_number( )
+          component  = lo_child_context
+        ) INTO TABLE lt_sorted.
+      ELSE.
+        INSERT VALUE #(
+          start_line = lo_child_statement->mo_scan_statement->get_first_line_number( )
+          component  = lo_child_context
+        ) INTO TABLE lt_sorted.
+      ENDIF.
     ENDLOOP.
 
     LOOP AT lt_sorted ASSIGNING FIELD-SYMBOL(<ls_sorted>).
@@ -212,6 +259,23 @@ CLASS zcl_ppr_context_factory IMPLEMENTATION.
       DATA(lv_index) = sy-tabix.
 
       CASE TYPE OF li_child.
+        WHEN TYPE zcl_ppr_chained_statement INTO DATA(lo_chained_statement).
+          DATA(lo_first_chain_element) = lo_chained_statement->get_chain_element( 1 ).
+          lv_next_line_number = lo_first_chain_element->mo_scan_statement->get_first_line_number( ).
+
+          IF lv_next_line_number - 1 > lv_last_line_number.
+            INSERT VALUE #(
+              index = lv_index
+              context = NEW zcl_ppr_ctx_empty(
+                          io_parent      = io_context
+                          iv_line_amount = lv_next_line_number - lv_last_line_number - 1
+                        )
+            ) INTO TABLE lt_new_contexts.
+          ENDIF.
+
+          lv_last_line_number = lo_first_chain_element->mo_scan_statement->get_last_line_number( ).
+          ##TODO. " Remove Duplication
+
         WHEN TYPE zcl_ppr_statement INTO DATA(lo_statement).
           lv_next_line_number = lo_statement->mo_scan_statement->get_first_line_number( ).
 

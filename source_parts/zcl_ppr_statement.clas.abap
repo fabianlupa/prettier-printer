@@ -23,7 +23,9 @@ ENDCLASS.
 CLASS zcl_ppr_statement IMPLEMENTATION.
   METHOD constructor.
     mo_scan_statement = io_scan_statement.
-    mt_source = io_scan_statement->get_source( ).
+    IF mo_scan_statement IS NOT INITIAL.
+      mt_source = io_scan_statement->get_source( ).
+    ENDIF.
   ENDMETHOD.
 
   METHOD get_statement_text.

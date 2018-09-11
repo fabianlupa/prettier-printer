@@ -33,7 +33,8 @@ CLASS zcl_ppr_rule_reorder_cls_defs IMPLEMENTATION.
             class_data    TYPE lty_definition_tab,
             data          TYPE lty_definition_tab,
           END OF ls_statements,
-          lt_ordered_statements TYPE zcl_ppr_context=>gty_statement_tab.
+          lt_ordered_statements TYPE zcl_ppr_context=>gty_statement_tab,
+          lo_actual_statement   TYPE REF TO zcl_ppr_statement.
     FIELD-SYMBOLS: <ls_definition> TYPE lty_definition.
 
 *    BREAK-POINT.
@@ -47,16 +48,22 @@ CLASS zcl_ppr_rule_reorder_cls_defs IMPLEMENTATION.
         APPEND lo_statement TO lt_ordered_statements.
         CONTINUE.
       ENDIF.
-      CASE TYPE OF lo_statement.
+
+      IF lo_statement IS INSTANCE OF zcl_ppr_chained_statement.
+        lo_actual_statement = CAST zcl_ppr_chained_statement( lo_statement )->get_chain_element( 1 ).
+      ELSE.
+        lo_actual_statement = lo_statement.
+      ENDIF.
+      CASE TYPE OF lo_actual_statement.
         WHEN TYPE zcl_ppr_stmnt_typedef INTO DATA(lo_typedef).
           INSERT VALUE #(
             identifier = lo_typedef->get_identifier( )
-            statement  = lo_typedef
+            statement  = lo_statement
           ) INTO TABLE ls_statements-types.
         WHEN TYPE zcl_ppr_stmnt_methdef INTO DATA(lo_methdef).
           INSERT VALUE #(
             identifier = lo_methdef->get_method_name( )
-            statement  = lo_methdef
+            statement  = lo_statement
           ) INTO TABLE ls_statements-methods.
       ENDCASE.
     ENDLOOP.
